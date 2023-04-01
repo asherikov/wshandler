@@ -1,0 +1,6 @@
+repositories:
+    staticoma:
+        type: git
+        url: https://github.com/asherikov/staticoma1.git
+        version: master
+

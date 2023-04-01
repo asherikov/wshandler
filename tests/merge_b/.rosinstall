@@ -1,0 +1,5 @@
+- git:
+    local-name: staticoma
+    uri: https://github.com/asherikov/staticoma.git
+    version: master
+

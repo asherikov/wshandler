@@ -1,0 +1,25 @@
+on:
+    push:
+        branches:
+            - '**'
+    pull_request:
+        types: [opened, reopened]
+
+
+env:
+    APT: sudo apt install -y --no-install-recommends
+
+jobs:
+    ubuntu20:
+        runs-on: ubuntu-20.04
+        steps:
+            - uses: actions/checkout@v3
+            - run: ./install.sh tests
+            - run: make test
+
+    ubuntu22:
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v3
+            - run: ./install.sh tests
+            - run: make test
