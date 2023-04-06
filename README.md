@@ -12,8 +12,8 @@ Key features:
 - `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, e.g.,
   it is easy to keep track of your local changes with respect to the upstream;
 - `wshandler` is implemented using `bash` and `yq` (https://github.com/mikefarah/yq);
-- currently supported repository types: `git`;
-- surrently supported repository list formats: `repos` and `rosinstall`
+- currently supported package sources: `git`;
+- supported repository list formats: `repos` and `rosinstall`
   (https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html)
 
 
