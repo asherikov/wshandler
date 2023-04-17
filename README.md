@@ -30,22 +30,22 @@ Usage
 =====
 
 ```
-Usage:
+Usage (default values are shown in curly braces):
   wshandler [<COMMON_ARGS>] [<COMMAND_ARGS>] <COMMAND> <COMMAND_ARGS>
 Common arguments:
-  -r|--root <WORKSPACE_ROOT>
-  -c|--cache <CACHE_DIR>
-  -t|--type rosinstall|repos
-  -i|--indent 1|2|3...
-  -k|--keep-going
+  -r|--root <WORKSPACE_ROOT>  {./}
+  -c|--cache <CACHE_DIR>      {<WORKSPACE_ROOT>}
+  -t|--type rosinstall|repos  {rosinstall}
+  -i|--indent 1|2|3...        {4}
+  -k|--keep-going             {false}
 Commands:
   status
-  [-j|--jobs <NUM_THREADS>] [-p|--policy shallow] update
-  [-j|--jobs <NUM_THREADS>] clean
-  [-p|--policy ask|add|show] scrape
+  [-j|--jobs <NUM_THREADS> {1}] [-p|--policy {default}|shallow] update
+  [-j|--jobs <NUM_THREADS> {1}] clean
+  [-p|--policy {ask}|add|show] scrape
   add git <NAME> <URL> <VERSION>
   remove <NAME>
-  [-p|--policy keep|replace] merge <FILENAME>
+  [-p|--policy {keep}|replace] merge <FILENAME>
 ```
 
 Examples
