@@ -4,9 +4,11 @@ test: shellcheck
 	@${MAKE} wrap_test TEST=test_update TYPE=rosinstall
 	@${MAKE} wrap_test TEST=test_scrape TYPE=rosinstall
 	@${MAKE} wrap_test TEST=test_merge TYPE=rosinstall
+	@${MAKE} wrap_test TEST=test_set_version TYPE=rosinstall
 	@${MAKE} wrap_test TEST=test_update TYPE=repos
 	@${MAKE} wrap_test TEST=test_scrape TYPE=repos
 	@${MAKE} wrap_test TEST=test_merge TYPE=repos
+	@${MAKE} wrap_test TEST=test_set_version TYPE=repos
 
 wrap_test:
 	@echo ""
@@ -41,6 +43,10 @@ test_merge:
 	./wshandler -t ${TYPE} -r tests/merge status
 	./wshandler -t ${TYPE} -r tests/merge -p replace merge tests/merge_b/.${TYPE}
 	./wshandler -t ${TYPE} -r tests/merge status
+
+test_set_version:
+	./wshandler -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master
+	./wshandler -t ${TYPE} --root tests/update/ set_version_by_name qpmad_tag 1.3.0
 
 shellcheck:
 	shellcheck ./wshandler

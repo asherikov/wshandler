@@ -2,24 +2,19 @@ repositories:
     staticoma:
         type: git
         url: https://github.com/asherikov/staticoma.git
-
     staticoma_master:
         type: git
         url: https://github.com/asherikov/staticoma.git
         version: master
-
     staticoma_commit:
         type: git
         url: https://github.com/asherikov/staticoma.git
         version: 4c7e4e2128a663b8e269ee000b9665762532d0e6
-
-    qpmad_tag:
-        type: git
-        url: https://github.com/asherikov/qpmad.git
-        version: 1.3.0
-
     catkin:
         type: git
         url: https://github.com/ros-gbp/catkin-release.git
         version: release/noetic/catkin/0.8.10-1
-
+    qpmad_tag:
+        type: git
+        url: https://github.com/asherikov/qpmad.git
+        version: 1.3.0

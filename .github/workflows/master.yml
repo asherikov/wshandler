@@ -13,13 +13,13 @@ jobs:
     ubuntu20:
         runs-on: ubuntu-20.04
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - run: ./install.sh tests
             - run: make test
 
     ubuntu22:
         runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - run: ./install.sh tests
             - run: make test

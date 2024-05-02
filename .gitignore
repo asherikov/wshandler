@@ -1,2 +1,3 @@
 tests/scrape
 tests/merge
+tests/update/.wshandler/
