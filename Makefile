@@ -27,6 +27,12 @@ test_update:
 	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
 	./wshandler -t ${TYPE} --root tests/update/ status
 	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
+	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase update
+	./wshandler -t ${TYPE} --root tests/update/ status
+	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
+	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy rebase update
+	./wshandler -t ${TYPE} --root tests/update/ status
+	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
 
 test_scrape:
 	rm -rf tests/scrape

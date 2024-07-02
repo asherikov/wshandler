@@ -21,6 +21,7 @@ install_tests()
 install_deps()
 {
     apt_install bash snap
+    # bsdextrautils
     snap_install yq
 }
 
