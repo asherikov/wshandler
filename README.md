@@ -20,10 +20,12 @@ Key features:
 Installation
 ============
 
-`wshandler` requires `bash`, `yq`, and `git` to work, you can use helper
-`install.sh` script in this repository to install dependencies. The utility
-itself is a single bash script that can be placed anywhere, e.g., your
-`${HOME}/bin`.
+`wshandler` is a bash script that can be placed anywhere, e.g., your
+`${HOME}/bin`. It requires `bash`, `yq`, and `git` to work, you can use helper
+`install.sh` script in this repository to install dependencies or download
+AppImage package from <https://github.com/asherikov/wshandler/releases> that
+includes `wshandler` and `yq` (`git` and `bash` must be present on the host
+system).
 
 
 Usage
