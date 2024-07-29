@@ -1,29 +1,12 @@
 on:
     push:
-        branches:
+        tags:
             - '**'
-    pull_request:
-        types: [opened, reopened]
-
 
 env:
     APT: sudo apt install -y --no-install-recommends
 
 jobs:
-    ubuntu20:
-        runs-on: ubuntu-20.04
-        steps:
-            - uses: actions/checkout@v4
-            - run: ./install.sh tests
-            - run: make test
-
-    ubuntu22:
-        runs-on: ubuntu-22.04
-        steps:
-            - uses: actions/checkout@v4
-            - run: ./install.sh tests
-            - run: make test
-
     appimage:
         runs-on: ubuntu-22.04
         steps:
@@ -32,3 +15,7 @@ jobs:
             - run: make appimage
             - run: make appimage ARCH=aarch64 YQ_ARCH=arm64
             - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
+            - uses: softprops/action-gh-release@v1
+              with:
+                files: build/appimage/wshandler*.AppImage
+                fail_on_unmatched_files: true

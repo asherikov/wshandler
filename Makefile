@@ -65,3 +65,31 @@ test_set_version:
 shellcheck:
 	shellcheck ./wshandler
 	shellcheck ./install.sh
+
+
+WGET=wget --progress=dot:giga --timestamping --no-check-certificate
+# aarch64
+export ARCH=x86_64
+# arm64
+YQ_ARCH=amd64
+APPDIR=build/appimage/AppDir_${ARCH}/
+
+# --appimage-help
+appimage:
+	rm -Rf ${APPDIR}
+	mkdir -p ${APPDIR}/usr/bin
+	cd build/appimage \
+		&& ${WGET} https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+		&& ${WGET} https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_${YQ_ARCH}.tar.gz \
+		&& tar -xf 'yq_linux_${YQ_ARCH}.tar.gz' -O > "AppDir_${ARCH}/usr/bin/yq" \
+		&& chmod +x appimagetool-x86_64.AppImage
+	cp wshandler "${APPDIR}/usr/bin/"
+	cp appimage/AppRun "${APPDIR}/AppRun"
+	chmod +x "${APPDIR}/AppRun"
+	chmod +x "${APPDIR}/usr/bin/yq"
+	cp appimage/wshandler.png "${APPDIR}"
+	cp appimage/wshandler.desktop "${APPDIR}"
+	cd build/appimage \
+		&& ./appimagetool-x86_64.AppImage AppDir_${ARCH} wshandler-${ARCH}.AppImage
+
+.PHONY: appimage

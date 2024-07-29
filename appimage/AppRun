@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+APPIMAGE_BIN="${APPDIR}/usr/bin/"
+
+PATH="${APPIMAGE_BIN}:${PATH}"
+export PATH
+exec "${APPIMAGE_BIN}/wshandler" "$@"
