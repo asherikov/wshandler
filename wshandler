@@ -29,6 +29,11 @@ help()
     echo "  remove <NAME>"
     echo "  remove_by_url <URL>"
     echo "  [-p|--policy {keep}|replace] merge <FILENAME>"
+
+    echo "Installation commands:"
+    echo "  install_test_deps"
+    echo "  [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>"
+
     exit "${EXIT_CODE}"
 }
 
@@ -62,12 +67,24 @@ repos_git_repo_names()
 
 git_status()
 {
-    {
+    DATA=$(
         echo "name|version (hash)|actual version|repository";
         echo "----|--------------|--------------|----------";
         "${WSH_WORKSPACE_TYPE}_git_repo_triplets" | while read -r -a TRIPLET; do dir_git_status "${TRIPLET[@]}"; done
-    } | column -t -s '|'
-    # --table-wrap 2,3 --output-separator ' '
+    )
+
+    MAX_LEN_1=$(cut -f 1 -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
+    MAX_LEN_2=$(cut -f 2 -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
+    MAX_LEN_3=$(cut -f 3 -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
+    MAX_LEN_4=$(cut -f 4 -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
+
+    IFS=$'\n' readarray -t ROWS <<< "${DATA}"
+    for ROW in "${ROWS[@]}"
+    do
+        IFS='|' read -ra COLS <<< "${ROW}"
+        # use ${COLUMNS} to crop?
+        printf "%-${MAX_LEN_1}.${MAX_LEN_1}s %-${MAX_LEN_2}.${MAX_LEN_2}s %-${MAX_LEN_3}.${MAX_LEN_3}s %-${MAX_LEN_4}.${MAX_LEN_4}s\n" "${COLS[@]}"
+    done
 
     echo
 
@@ -145,7 +162,6 @@ dir_git_status()
     then
         cd "${GIT_DIR}"
         GIT_VERSION_HASH=$(git rev-parse --short "${GIT_VERSION}" || echo -n "unknown")
-        # git status --porcelain | awk '{print $1}' | sort | uniq | tr -d '\n'
         GIT_ACTUAL_VERSION=$(git describe --dirty --broken --all --long --always | tr -d '\n')
     fi
 
@@ -385,6 +401,16 @@ set_version()
 }
 
 
+apt_install()
+{
+    sudo env DEBIAN_FRONTEND=noninteractive apt --yes --no-install-recommends install "$@"
+}
+
+snap_install()
+{
+    sudo snap install "$@"
+}
+
 
 WSH_SOURCE_TYPES="git"
 WSH_COMMAND_POLICY=default
@@ -455,6 +481,38 @@ do
 
         dir_*)
             "$1" "${@:2}"
+            exit;;
+
+        install_test_deps)
+            apt_install shellcheck
+            exit;;
+
+        install)
+            BIN_PATH=${2:-"${HOME}/bin"}
+
+            mkdir -p "${BIN_PATH}"
+            cp wshandler "${BIN_PATH}"
+
+            if ! command -v "yq" > /dev/null
+            then
+                case "${WSH_COMMAND_POLICY}" in
+                    skip_yq|default)
+                        ;;
+                    snap)
+                        apt_install snap
+                        snap_install yq
+                        ;;
+                    download)
+                        apt_install wget
+                        wget -O - "https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_$(dpkg --print-architecture).tar.gz" \
+                            | tar -zxO > "${BIN_PATH}/yq"
+                        chmod +x "${BIN_PATH}/yq"
+                        ;;
+                    *)
+                        echo "Unsupported installation policy.";
+                        exit 4;;
+                esac
+            fi
             exit;;
 
         *)

@@ -1,4 +1,5 @@
-TYPE=rosinstall
+TYPE?=rosinstall
+WSHANDLER?=./wshandler
 
 test: shellcheck
 	@${MAKE} test_type TYPE=rosinstall
@@ -19,67 +20,70 @@ wrap_test:
 	@echo ""
 
 test_update:
-	./wshandler -t ${TYPE} --root tests/update/ clean
-	./wshandler -t ${TYPE} -r tests/update/ status
-	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 update
-	./wshandler -t ${TYPE} --root tests/update/ status
-	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
-	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
-	./wshandler -t ${TYPE} --root tests/update/ status
-	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
-	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase update
-	./wshandler -t ${TYPE} --root tests/update/ status
-	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
-	./wshandler -t ${TYPE} -r tests/update/ --jobs 2 --policy rebase update
-	./wshandler -t ${TYPE} --root tests/update/ status
-	./wshandler -t ${TYPE} --root tests/update/ -j 2 clean
+	${WSHANDLER} -t ${TYPE} --root tests/update/ clean
+	${WSHANDLER} -t ${TYPE} -r tests/update/ status
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase update
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy rebase update
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 
 test_scrape:
 	rm -rf tests/scrape
 	mkdir -p tests/scrape
 	cd tests/scrape; git clone https://github.com/asherikov/staticoma.git
 	cd tests/scrape; git clone https://github.com/asherikov/qpmad.git
-	./wshandler -t ${TYPE} -r tests/scrape --policy add scrape
-	./wshandler -t ${TYPE} -r tests/scrape status
+	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape
+	${WSHANDLER} -t ${TYPE} -r tests/scrape status
 
 test_merge:
 	rm -rf tests/merge
 	cp -r tests/merge_a tests/merge
-	./wshandler -t ${TYPE} -r tests/merge status
-	./wshandler -t ${TYPE} -r tests/merge merge tests/merge_b/.${TYPE}
-	./wshandler -t ${TYPE} -r tests/merge status
-	./wshandler -t ${TYPE} -r tests/merge -p replace merge tests/merge_b/.${TYPE}
-	./wshandler -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge merge tests/merge_b/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge -p replace merge tests/merge_b/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/merge status
 
 test_remove:
 	rm -Rf tests/remove
 	cp -r tests/update tests/remove
-	./wshandler -t ${TYPE} --root tests/remove/ remove staticoma_commit
-	./wshandler -t ${TYPE} --root tests/remove/ remove_by_url "https://github.com/ros-gbp/catkin-release.git"
+	${WSHANDLER} -t ${TYPE} --root tests/remove/ remove staticoma_commit
+	${WSHANDLER} -t ${TYPE} --root tests/remove/ remove_by_url "https://github.com/ros-gbp/catkin-release.git"
 
 
 test_set_version:
-	./wshandler -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master
-	./wshandler -t ${TYPE} --root tests/update/ set_version_by_name qpmad_tag 1.3.0
+	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master
+	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_name qpmad_tag 1.3.0
 
 shellcheck:
-	shellcheck ./wshandler
-	shellcheck ./install.sh
+	shellcheck wshandler
 
+clean:
+	rm -Rf build
 
 WGET=wget --progress=dot:giga --timestamping --no-check-certificate
 # aarch64
-export ARCH=x86_64
+export ARCH?=x86_64
 # arm64
-YQ_ARCH=amd64
+YQ_ARCH?=amd64
 APPDIR=build/appimage/AppDir_${ARCH}/
 
 # --appimage-help
 appimage:
 	rm -Rf ${APPDIR}
 	mkdir -p ${APPDIR}/usr/bin
+	# https://github.com/AppImage/type2-runtime/issues/47
+	# ${WGET} https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
 	cd build/appimage \
-		&& ${WGET} https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+		&& ${WGET} https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage \
 		&& ${WGET} https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_${YQ_ARCH}.tar.gz \
 		&& tar -xf 'yq_linux_${YQ_ARCH}.tar.gz' -O > "AppDir_${ARCH}/usr/bin/yq" \
 		&& chmod +x appimagetool-x86_64.AppImage
@@ -89,7 +93,8 @@ appimage:
 	chmod +x "${APPDIR}/usr/bin/yq"
 	cp appimage/wshandler.png "${APPDIR}"
 	cp appimage/wshandler.desktop "${APPDIR}"
+	# --appimage-extract-and-run to avoid dependency on fuse in CI
 	cd build/appimage \
-		&& ./appimagetool-x86_64.AppImage AppDir_${ARCH} wshandler-${ARCH}.AppImage
+		&& ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir_${ARCH} wshandler-${ARCH}.AppImage
 
 .PHONY: appimage

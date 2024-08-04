@@ -8,14 +8,16 @@ env:
 
 jobs:
     appimage:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
             - run: ${APT} desktop-file-utils
-            - run: make appimage
+            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64
             - run: make appimage ARCH=aarch64 YQ_ARCH=arm64
-            - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
+            - run: ./build/appimage/wshandler-x86_64.AppImage --appimage-extract-and-run -r tests/update status
             - uses: softprops/action-gh-release@v1
               with:
-                files: build/appimage/wshandler*.AppImage
+                files: |
+                    build/appimage/wshandler*.AppImage
+                    wshandler
                 fail_on_unmatched_files: true

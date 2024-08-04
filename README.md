@@ -21,8 +21,8 @@ Installation
 ============
 
 `wshandler` is a bash script that can be placed anywhere, e.g., your
-`${HOME}/bin`. It requires `bash`, `yq`, and `git` to work, you can use helper
-`install.sh` script in this repository to install dependencies or download
+`${HOME}/bin`. It requires `bash`, `yq`, and `git` to work, you can use
+installation commands of the script to install dependencies, or download
 AppImage package from <https://github.com/asherikov/wshandler/releases> that
 includes `wshandler` and `yq` (`git` and `bash` must be present on the host
 system).
@@ -52,6 +52,9 @@ Commands:
   remove <NAME>
   remove_by_url <URL>
   [-p|--policy {keep}|replace] merge <FILENAME>
+Installation commands:
+  install_test_deps
+  [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>
 ```
 
 Examples

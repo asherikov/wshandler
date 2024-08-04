@@ -14,21 +14,37 @@ jobs:
         runs-on: ubuntu-20.04
         steps:
             - uses: actions/checkout@v4
-            - run: ./install.sh tests
+            - run: ./wshandler install_test_deps
             - run: make test
 
     ubuntu22:
         runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v4
-            - run: ./install.sh tests
+            - run: ./wshandler install_test_deps
             - run: make test
 
-    appimage:
+    ubuntu22-download-yq:
         runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v4
+            - run: ./wshandler install_test_deps
+            - run: sudo ./wshandler --policy download install /usr/bin/
+            - run: make test WSHANDLER=wshandler
+
+    ubuntu22-snap-yq:
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v4
+            - run: ./wshandler install_test_deps
+            - run: sudo ./wshandler --policy snap install /usr/bin/
+            - run: make test WSHANDLER=wshandler
+
+    appimage:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
             - run: ${APT} desktop-file-utils
-            - run: make appimage
+            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64
             - run: make appimage ARCH=aarch64 YQ_ARCH=arm64
-            - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
+            - run: ./build/appimage/wshandler-x86_64.AppImage --appimage-extract-and-run -r tests/update status
