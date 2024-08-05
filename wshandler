@@ -234,7 +234,10 @@ check_workspace()
     if ! command -v "${WSH_YQ_BINARY}" > /dev/null
     then
         WSH_YQ_BINARY=yq
-        command -v "${WSH_YQ_BINARY}" > /dev/null || (echo "'yq' is not installed" && false)
+        if ! command -v "${WSH_YQ_BINARY}" > /dev/null
+        then
+            WSH_YQ_BINARY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/yq" || (echo "'yq' is not installed" && false)
+        fi
     fi
     WSH_YQ=("${WSH_YQ_BINARY}" --indent "${WSH_INDENT}")
 
@@ -491,7 +494,10 @@ do
             BIN_PATH=${2:-"${HOME}/bin"}
 
             mkdir -p "${BIN_PATH}"
-            cp wshandler "${BIN_PATH}"
+            if [ ! "${BASH_SOURCE[0]}" -ef "${BIN_PATH}/wshandler" ]
+            then
+                cp "${BASH_SOURCE[0]}" "${BIN_PATH}/wshandler"
+            fi
 
             if ! command -v "yq" > /dev/null
             then
