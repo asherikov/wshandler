@@ -81,9 +81,9 @@ appimage:
 	rm -Rf ${APPDIR}
 	mkdir -p ${APPDIR}/usr/bin
 	# https://github.com/AppImage/type2-runtime/issues/47
-	# ${WGET} https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+	# ${WGET} https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
 	cd build/appimage \
-		&& ${WGET} https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage \
+		&& ${WGET} https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
 		&& ${WGET} https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_${YQ_ARCH}.tar.gz \
 		&& tar -xf 'yq_linux_${YQ_ARCH}.tar.gz' -O > "AppDir_${ARCH}/usr/bin/yq" \
 		&& chmod +x appimagetool-x86_64.AppImage
@@ -95,6 +95,6 @@ appimage:
 	cp appimage/wshandler.desktop "${APPDIR}"
 	# --appimage-extract-and-run to avoid dependency on fuse in CI
 	cd build/appimage \
-		&& ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir_${ARCH} wshandler-${ARCH}.AppImage
+		&& ./appimagetool-x86_64.AppImage AppDir_${ARCH} wshandler-${ARCH}.AppImage
 
 .PHONY: appimage
