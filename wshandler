@@ -29,6 +29,12 @@ help()
     echo "  remove <NAME>"
     echo "  remove_by_url <URL>"
     echo "  [-p|--policy {keep}|replace] merge <FILENAME>"
+    echo "  [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'"
+    echo "  show_branches '<GREP PATTERN>'"
+    echo "  prune"
+    echo "  push"
+    echo "  branch <BRANCH NAME>"
+    echo "  commit '<MESSAGE>'"
 
     echo "Installation commands:"
     echo "  install_test_deps"
@@ -94,6 +100,30 @@ git_status()
 
 git_update()
 {
+    IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
+
+    if [ -d "${WSH_WORKSPACE_ROOT}/.git" ]
+    then
+        echo "Processing workspace root"
+        git fetch
+        if git diff --exit-code > /dev/null && git diff --cached --exit-code > /dev/null
+        then
+            # if we are on a branch make sure that it is updated
+            if (git branch --show-current | grep "${GIT_VERSION}")
+            then
+                PULL_ARGS=()
+                for POLICY in "${POLICIES[@]}";
+                do
+                    if [ "${POLICY}" == "rebase" ]
+                    then
+                        PULL_ARGS+=(--rebase)
+                    fi
+                done
+                git pull "${PULL_ARGS[@]}"
+            fi
+        fi
+    fi
+
     "${WSH_WORKSPACE_TYPE}_git_repo_triplets" | "${WSH_XARGS[@]}" "${WSHANDLER[@]}" dir_git_update
 }
 
@@ -148,6 +178,17 @@ git_scrape()
             esac
         done
     done
+}
+
+dir_run()
+{
+    echo ">>> Processing '$1'"
+    if [ -d "${WSH_WORKSPACE_ROOT}/$1/" ]
+    then
+        cd "${WSH_WORKSPACE_ROOT}/$1/" && sh -c "$2"
+    else
+        echo "Missing directory: ${WSH_WORKSPACE_ROOT}/$1/"
+    fi
 }
 
 dir_git_status()
@@ -260,7 +301,7 @@ check_workspace()
         esac
     fi
 
-    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE} -p ${WSH_COMMAND_POLICY}")
+    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE}" -p "${WSH_COMMAND_POLICY}")
     if [ -n "${WSH_KEEP_GOING}" ]
     then
         WSHANDLER+=("${WSH_KEEP_GOING}")
@@ -377,6 +418,43 @@ execute_add()
     "${WSH_WORKSPACE_TYPE}_$1_add" "$@"
 }
 
+
+git_foreach()
+{
+    "${WSH_WORKSPACE_TYPE}_${WSH_SOURCE_TYPE}_repo_names" | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$1"
+}
+
+execute_foreach()
+{
+    "${WSH_SOURCE_TYPE}_foreach" "$@"
+}
+
+execute_prune()
+{
+    git_foreach "git remote | xargs --no-run-if-empty -L 1 -I {} git remote prune {}"
+}
+
+execute_push()
+{
+    git_foreach "git push"
+}
+
+execute_show_branches()
+{
+    git_foreach "git branch -a | grep '$1'"
+}
+
+execute_branch()
+{
+    git_foreach "((git status --porcelain | grep . > /dev/null) && git checkout -b ${1}) || true"
+}
+
+execute_commit()
+{
+    git_foreach "((git status --porcelain | grep . > /dev/null) && git commit -a -m '${1}') || true"
+}
+
+
 set_version()
 {
     TARGET_MATCH="$2"
@@ -422,6 +500,7 @@ WSH_INDENT=4
 WSH_XARGS=(xargs --no-run-if-empty -L 1 -P "${WSH_JOBS}")
 WSH_KEEP_GOING=""
 WSH_YQ_BINARY="yq"
+WSH_SOURCE_TYPE="git"
 
 while [[ $# -gt 0 ]]
 do
@@ -458,22 +537,26 @@ do
             WSH_KEEP_GOING="-k"
             shift;;
 
+        -s|--source)
+            WSH_SOURCE_TYPE=$2
+            shift; shift;;
+
         status|update|clean|scrape)
             check_workspace "$1"
             execute_command "$1"
             exit;;
 
-        add|remove|merge|remove_by_url)
+        add|remove|merge|remove_by_url|foreach|prune|show_branches|push|branch|commit|set_version_branch)
             check_workspace "$1"
             "execute_$1" "${@:2}"
             exit;;
 
         set_version_by_url|set_version_by_name)
             check_workspace "$1"
-            set_version "$1" "${@:2}"
+            set_version "${@}"
             exit;;
 
-        dir_*_update)
+        dir_*_update|dir_run)
             if [ -n "${WSH_KEEP_GOING}" ]
             then
                 "$1" "${@:2}" || true
