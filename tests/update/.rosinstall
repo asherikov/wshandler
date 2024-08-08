@@ -2,10 +2,6 @@
     local-name: staticoma
     uri: https://github.com/asherikov/staticoma.git
 - git:
-    local-name: staticoma_master
-    uri: https://github.com/asherikov/staticoma.git
-    version: master
-- git:
     local-name: staticoma_commit
     uri: https://github.com/asherikov/staticoma.git
     version: 4c7e4e2128a663b8e269ee000b9665762532d0e6
@@ -17,3 +13,7 @@
     local-name: qpmad_tag
     uri: https://github.com/asherikov/qpmad.git
     version: 1.3.0
+- git:
+    local-name: staticoma_master
+    uri: https://github.com/asherikov/staticoma.git
+    version: master

@@ -2,19 +2,19 @@ Introduction
 ============
 
 `wshandler` is a workspace management utility similar to
-https://github.com/dirk-thomas/vcstool and discontinued
-https://github.com/vcstools/wstool. A workspace is a directory containing a set
+<https://github.com/dirk-thomas/vcstool> and discontinued
+<https://github.com/vcstools/wstool>. A workspace is a directory containing a set
 of packages (typically git repositories) under development, see
-https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html
-or http://wiki.ros.org/catkin/workspaces for more information.
+<https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
+or <http://wiki.ros.org/catkin/workspaces for more information>.
 
 Key features:
 - `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, e.g.,
   it is easy to keep track of your local changes with respect to the upstream;
-- `wshandler` is implemented using `bash` and `yq` (https://github.com/mikefarah/yq);
+- `wshandler` is implemented using `bash` and `yq` (<https://github.com/mikefarah/yq>);
 - currently supported package sources: `git`;
 - supported repository list formats: `repos` (default) and `rosinstall`
-  (https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html)
+  (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>)
 
 
 Installation
@@ -41,7 +41,7 @@ Common arguments:
   -t|--type rosinstall|repos  {repos}
   -i|--indent 1|2|3...        {4}
   -k|--keep-going             {false}
-Commands:
+List commands:
   status
   [-j|--jobs <NUM_THREADS> {1}] [-p|--policy {default}|shallow|rebase] update
   [-j|--jobs <NUM_THREADS> {1}] clean
@@ -52,6 +52,16 @@ Commands:
   remove <NAME>
   remove_by_url <URL>
   [-p|--policy {keep}|replace] merge <FILENAME>
+Repository commands:
+  [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
+  prune
+  push
+  branch show ['<GREP_PATTERN>']
+  branch new <BRANCH_NAME>
+  branch delete <BRANCH_NAME>
+  branch switch <BRANCH_NAME>
+  branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
+  commit '<MESSAGE>'
 Installation commands:
   install_test_deps
   [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>
@@ -62,11 +72,13 @@ Examples
 
 - `wshandler status`
 ```
->>> wshandler status .../wshandler/tests/scrape/: git sources ---
-name       version (hash)    actual version           repository
-----       --------------    --------------           ----------
-qpmad      master (53edb8a)  heads/master-0-g53edb8a  https://github.com/asherikov/qpmad.git
-staticoma  master (06e8628)  heads/master-0-g06e8628  https://github.com/asherikov/staticoma.git
+>>> wshandler status .../ccws/src/: git sources ---
+Flags: H - version hash mismatch, M - uncommited changes
+name              version  actual version              HM repository
+----              -------  --------------              -- ----------
+ariles            pkg_ws_2 tags/ws-2.3.1-0-ge2748ad4      https://github.com/asherikov/ariles.git
+intrometry        main     tags/0.1.0-0-ga033cd5-dirty  M https://github.com/asherikov/intrometry.git
+thread_supervisor master   tags/1.1.0-0-gbbf8a09          https://github.com/asherikov/thread_supervisor.git
 
-<<< wshandler status .../wshandler/tests/scrape/: git sources ---
+<<< wshandler status .../ccws/src/: git sources ---
 ```
