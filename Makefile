@@ -4,6 +4,7 @@ WSHANDLER?=./wshandler
 test: shellcheck
 	@${MAKE} test_type TYPE=rosinstall
 	@${MAKE} test_type TYPE=repos
+	${WSHANDLER} -r tests/clone -p shallow clone git https://github.com/asherikov/sharf.git main
 
 test_type:
 	@${MAKE} wrap_test TEST=test_update
@@ -12,6 +13,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_merge
 	@${MAKE} wrap_test TEST=test_set_version
 	@${MAKE} wrap_test TEST=test_branch
+	@${MAKE} wrap_test TEST=test_init
 
 wrap_test:
 	@echo ""
@@ -59,6 +61,8 @@ test_remove:
 	${WSHANDLER} -t ${TYPE} --root tests/remove/ remove staticoma_commit
 	${WSHANDLER} -t ${TYPE} --root tests/remove/ remove_by_url "https://github.com/ros-gbp/catkin-release.git"
 
+test_init:
+	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE} -p shallow init git https://github.com/asherikov/staticoma.git
 
 test_set_version:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master

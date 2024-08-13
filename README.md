@@ -52,6 +52,9 @@ List commands:
   remove <NAME>
   remove_by_url <URL>
   [-p|--policy {keep}|replace] merge <FILENAME>
+List initialization commands:
+  [-p|--policy {default}|shallow|rebase] clone git <URL> [<BRANCH>]
+  [-p|--policy {default}|shallow] init [git <URL1> ...]
 Repository commands:
   [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
   prune
