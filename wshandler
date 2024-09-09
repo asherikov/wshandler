@@ -744,7 +744,7 @@ do
                         then
                             apt_install wget
                         fi
-                        wget -O - "https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_$(dpkg --print-architecture).tar.gz" \
+                        wget -O - "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture).tar.gz" \
                             | tar -zxO > "${BIN_PATH}/yq"
                         chmod +x "${BIN_PATH}/yq"
                         ;;

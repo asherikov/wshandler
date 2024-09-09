@@ -47,4 +47,4 @@ jobs:
             - run: ${APT} desktop-file-utils
             - run: make appimage ARCH=x86_64 YQ_ARCH=amd64
             - run: make appimage ARCH=aarch64 YQ_ARCH=arm64
-            - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
+            - run: make test WSHANDLER=./build/appimage/wshandler-x86_64.AppImage
