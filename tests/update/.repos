@@ -2,10 +2,6 @@ repositories:
     staticoma:
         type: git
         url: https://github.com/asherikov/staticoma.git
-    staticoma_master:
-        type: git
-        url: https://github.com/asherikov/staticoma.git
-        version: master
     staticoma_commit:
         type: git
         url: https://github.com/asherikov/staticoma.git
@@ -18,3 +14,7 @@ repositories:
         type: git
         url: https://github.com/asherikov/qpmad.git
         version: 1.3.0
+    staticoma_master:
+        type: git
+        url: https://github.com/asherikov/staticoma.git
+        version: master

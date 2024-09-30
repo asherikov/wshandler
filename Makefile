@@ -31,7 +31,7 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
-	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase update
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase,nolfs update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy rebase update
@@ -63,6 +63,7 @@ test_remove:
 
 test_init:
 	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE} -p shallow init git https://github.com/asherikov/staticoma.git
+	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE}_nolfs -p shallow,nolfs init git https://github.com/asherikov/staticoma.git
 
 test_set_version:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master

@@ -43,7 +43,7 @@ Common arguments:
   -k|--keep-going             {false}
 List commands:
   status
-  [-j|--jobs <NUM_THREADS> {1}] [-p|--policy {default}|shallow|rebase] update
+  [-j|--jobs <NUM_THREADS> {1}] [-p|--policy policy1[,policy2] ({default}|shallow|nolfs|rebase)] update
   [-j|--jobs <NUM_THREADS> {1}] clean
   [-p|--policy {ask}|add|show] scrape
   add git <NAME> <URL> <VERSION>
@@ -53,8 +53,8 @@ List commands:
   remove_by_url <URL>
   [-p|--policy {keep}|replace] merge <FILENAME>
 List initialization commands:
-  [-p|--policy {default}|shallow|rebase] clone git <URL> [<BRANCH>]
-  [-p|--policy {default}|shallow] init [git <URL1> ...]
+  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <URL> [<BRANCH>]
+  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <URL1> ...]
 Repository commands:
   [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
   prune
