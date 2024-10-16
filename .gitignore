@@ -1,5 +1,2 @@
-tests/scrape
-tests/merge
-tests/remove
-tests/update/.wshandler/
+tests
 build

@@ -4,6 +4,7 @@ WSHANDLER?=./wshandler
 test: shellcheck
 	@${MAKE} test_type TYPE=rosinstall
 	@${MAKE} test_type TYPE=repos
+	@${MAKE} test_root_git
 	${WSHANDLER} -r tests/clone -p shallow clone git https://github.com/asherikov/sharf.git main
 
 test_type:
@@ -80,6 +81,14 @@ test_branch:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ branch merge as_remove_readme master
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_name staticoma_master master
+
+test_root_git:
+	rm -Rf tests/root_git
+	mkdir -p tests/root_git
+	touch tests/root_git/.repos
+	touch tests/root_git/.rosinstall
+	cd tests/root_git; git init
+	${WSHANDLER} --root tests/root_git update
 
 shellcheck:
 	shellcheck wshandler

@@ -122,28 +122,31 @@ git_update()
 
     if [ -d "${WSH_WORKSPACE_ROOT}/.git" ]
     then
-        echo "Processing workspace root ${WSH_WORKSPACE_ROOT}"
         pushd "${WSH_WORKSPACE_ROOT}"
-        git fetch
-        if git diff --exit-code > /dev/null && git diff --cached --exit-code > /dev/null
+        if [ -n "$(git remote show)" ]
         then
-            # if we are on a branch make sure that it is updated
-            if (git branch --show-current | grep "${GIT_VERSION}")
+            echo "Processing workspace root ${WSH_WORKSPACE_ROOT}"
+            git fetch
+            if git diff --exit-code > /dev/null && git diff --cached --exit-code > /dev/null
             then
-                PULL_ENV=(env)
-                PULL_ARGS=()
-                for POLICY in "${POLICIES[@]}";
-                do
-                    case ${POLICY} in
-                        rebase)
-                            PULL_ARGS+=(--rebase)
-                            ;;
-                        nolfs)
-                            PULL_ENV+=("GIT_LFS_SKIP_SMUDGE=1")
-                            ;;
-                    esac
-                done
-                "${PULL_ENV[@]}" git pull "${PULL_ARGS[@]}"
+                # if we are on a branch make sure that it is updated
+                if (git branch --show-current | grep "${GIT_VERSION}")
+                then
+                    PULL_ENV=(env)
+                    PULL_ARGS=()
+                    for POLICY in "${POLICIES[@]}";
+                    do
+                        case ${POLICY} in
+                            rebase)
+                                PULL_ARGS+=(--rebase)
+                                ;;
+                            nolfs)
+                                PULL_ENV+=("GIT_LFS_SKIP_SMUDGE=1")
+                                ;;
+                        esac
+                    done
+                    "${PULL_ENV[@]}" git pull "${PULL_ARGS[@]}"
+                fi
             fi
         fi
         popd
