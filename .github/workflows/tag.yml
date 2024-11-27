@@ -12,8 +12,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - run: ${APT} desktop-file-utils
-            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64
-            - run: make appimage ARCH=aarch64 YQ_ARCH=arm64
+            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64 VERSION=${{ github.ref_name }}
+            - run: make appimage ARCH=aarch64 YQ_ARCH=arm64 VERSION=${{ github.ref_name }}
             - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
             - uses: softprops/action-gh-release@v2
               with:
