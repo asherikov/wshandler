@@ -44,6 +44,7 @@ Common arguments:
 List commands:
   Information:
     status
+    is_source_space
   Initialization:
     [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]
     [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]
