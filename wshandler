@@ -5,12 +5,17 @@
 set -e
 set -o pipefail
 
+WSH_VERSION=
 
 help()
 {
     EXIT_CODE=${1:-"0"}
     echo "Usage (default values are shown in curly braces):"
     echo "  wshandler [<COMMON_ARGS>] [<COMMAND_ARGS>] <COMMAND> <COMMAND_ARGS>"
+    if [ -n "${WSH_VERSION}" ]
+    then
+        echo "  wshandler -v|--version"
+    fi
     echo ""
     echo "Notation:"
     echo "  <REQUIRED ARGUMENT>"
@@ -724,6 +729,16 @@ WSH_REPOLIST=
 while [[ $# -gt 0 ]]
 do
     case $1 in
+        -v|--version)
+            if [ -n "${WSH_VERSION}" ]
+            then
+                echo "wshandler version: ${WSH_VERSION}"
+                exit
+            else
+                echo "wshandler version is unknown"
+                exit 50
+            fi;;
+
         -y|--yq)
             WSH_YQ_BINARY=$2
             shift; shift;;

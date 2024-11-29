@@ -3,21 +3,20 @@ on:
         tags:
             - '**'
 
-env:
-    APT: sudo apt install -y --no-install-recommends
-
 jobs:
     appimage:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-            - run: ${APT} desktop-file-utils
-            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64 VERSION=${{ github.ref_name }}
-            - run: make appimage ARCH=aarch64 YQ_ARCH=arm64 VERSION=${{ github.ref_name }}
+            - run: make appimage_deps
+            - run: make appimage ARCH=x86_64 YQ_ARCH=amd64 WSHANDLER_VERSION=${{ github.ref_name }}
+            - run: make appimage ARCH=aarch64 YQ_ARCH=arm64 WSHANDLER_VERSION=${{ github.ref_name }}
             - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
             - uses: softprops/action-gh-release@v2
               with:
                 files: |
                     build/appimage/wshandler*.AppImage
+                    build/appimage/wshandler*.zsync
+                    wshandler
                     wshandler
                 fail_on_unmatched_files: true

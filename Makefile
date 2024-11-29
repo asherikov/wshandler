@@ -120,6 +120,7 @@ appimage:
 		&& tar -xf 'yq_linux_${YQ_ARCH}.tar.gz' -O > "AppDir_${ARCH}/usr/bin/yq" \
 		&& chmod +x appimagetool-x86_64.AppImage
 	cp wshandler "${APPDIR}/usr/bin/"
+	test -z "${WSHANDLER_VERSION}" || sed -i -e "s/WSH_VERSION=/WSH_VERSION=${WSHANDLER_VERSION}/g" "${APPDIR}/usr/bin/wshandler"
 	cp appimage/AppRun "${APPDIR}/AppRun"
 	chmod +x "${APPDIR}/AppRun"
 	chmod +x "${APPDIR}/usr/bin/yq"
@@ -127,6 +128,11 @@ appimage:
 	cp appimage/wshandler.desktop "${APPDIR}"
 	# --appimage-extract-and-run to avoid dependency on fuse in CI
 	cd build/appimage \
-		&& ./appimagetool-x86_64.AppImage AppDir_${ARCH} wshandler-${ARCH}.AppImage
+		&& ./appimagetool-x86_64.AppImage \
+		--updateinformation "gh-releases-zsync|asherikov|wshandler|latest|wshandler-${ARCH}.AppImage.zsync" \
+		AppDir_${ARCH} wshandler-${ARCH}.AppImage
+
+appimage_deps:
+	sudo apt install -y --no-install-recommends desktop-file-utils zsync
 
 .PHONY: appimage
