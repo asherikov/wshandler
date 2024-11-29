@@ -20,33 +20,37 @@ help()
     echo "  -k|--keep-going             {false}"
 
     echo "List commands:"
-    echo "  status"
-    echo "  [-j|--jobs <NUM_THREADS> {1}] [-p|--policy policy1[,policy2] ({default}|shallow|nolfs|rebase)] update"
-    echo "  [-j|--jobs <NUM_THREADS> {1}] clean"
-    echo "  [-p|--policy {ask}|add|show] scrape"
-    echo "  add git <NAME> <URL> <VERSION>"
-    echo "  set_version_by_url <URL> <VERSION>"
-    echo "  set_version_by_name <NAME> <VERSION>"
-    echo "  remove <NAME>"
-    echo "  remove_by_url <URL>"
-    echo "  [-p|--policy {keep}|replace] merge <FILENAME>"
+    echo "  Information:"
+    echo "    status"
+    echo "  Initialization:"
+    echo "    [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]"
+    echo "    [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]"
+    echo "  Modification:"
+    echo "    [-p|--policy {ask}|add|show] scrape"
+    echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>"
+    echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>"
+    echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>"
+    echo "    remove <PACKAGE_NAME>"
+    echo "    remove_by_url <PACKAGE_URL>"
+    echo "    [-p|--policy {keep}|replace] merge <LIST_FILENAME>"
 
-    echo "List initialization commands:"
-    echo "  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <URL> [<BRANCH>]"
-    echo "  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <URL1> ...]"
+    echo "Package repository commands:"
+    echo "  Global:"
+    echo "    [-j|--jobs <NUM_THREADS> {1}] [-p|--policy policy1[,policy2] ({default}|shallow|nolfs|rebase)] update"
+    echo "    [-j|--jobs <NUM_THREADS> {1}] clean"
+    echo "    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'"
+    echo "    prune"
+    echo "    push"
+    echo "    branch show ['<GREP_PATTERN>']"
+    echo "    branch new <BRANCH_NAME>"
+    echo "    branch delete <BRANCH_NAME>"
+    echo "    branch switch <BRANCH_NAME>"
+    echo "    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>"
+    echo "    commit '<MESSAGE>'"
+    echo "  Local:"
+    echo "    unshallow <PACKAGE_NAME>"
 
-    echo "Repository commands:"
-    echo "  [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'"
-    echo "  prune"
-    echo "  push"
-    echo "  branch show ['<GREP_PATTERN>']"
-    echo "  branch new <BRANCH_NAME>"
-    echo "  branch delete <BRANCH_NAME>"
-    echo "  branch switch <BRANCH_NAME>"
-    echo "  branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>"
-    echo "  commit '<MESSAGE>'"
-
-    echo "Installation commands:"
+    echo "wshandler installation commands:"
     echo "  install_test_deps"
     echo "  [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>"
 
@@ -617,6 +621,36 @@ execute_init()
 }
 
 
+execute_unshallow()
+{
+    TARGET_NAME="$1"
+
+    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+    do
+        "${WSH_WORKSPACE_TYPE}_${SOURCE_TYPE}_repo_triplets" \
+            | while read -r NAME REPO VERSION; \
+            do \
+                if [ "${TARGET_NAME}" = "${NAME}" ];\
+                then \
+                    REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"
+                    if [ -d "${REPO_DIR}/.git" ]; \
+                    then \
+                        echo "${NAME}: unshallowing"; \
+                        cd "${REPO_DIR}"; \
+                        git fetch --unshallow; \
+                        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; \
+                        git fetch origin; \
+                        exit; \
+                    else \
+                        echo "${NAME}: is not a git repository'"; \
+                        exit 40; \
+                    fi \
+                fi; \
+            done
+    done
+}
+
+
 set_version()
 {
     TARGET_MATCH="$2"
@@ -712,7 +746,7 @@ do
             execute_command "$1"
             exit;;
 
-        add|remove|merge|remove_by_url|foreach|prune|push|branch|commit|set_version_branch)
+        add|remove|merge|remove_by_url|foreach|prune|push|branch|commit|set_version_branch|unshallow)
             check_workspace "$1"
             "execute_$1" "${@:2}"
             exit;;

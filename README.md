@@ -42,30 +42,35 @@ Common arguments:
   -i|--indent 1|2|3...        {4}
   -k|--keep-going             {false}
 List commands:
-  status
-  [-j|--jobs <NUM_THREADS> {1}] [-p|--policy policy1[,policy2] ({default}|shallow|nolfs|rebase)] update
-  [-j|--jobs <NUM_THREADS> {1}] clean
-  [-p|--policy {ask}|add|show] scrape
-  add git <NAME> <URL> <VERSION>
-  set_version_by_url <URL> <VERSION>
-  set_version_by_name <NAME> <VERSION>
-  remove <NAME>
-  remove_by_url <URL>
-  [-p|--policy {keep}|replace] merge <FILENAME>
-List initialization commands:
-  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <URL> [<BRANCH>]
-  [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <URL1> ...]
-Repository commands:
-  [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
-  prune
-  push
-  branch show ['<GREP_PATTERN>']
-  branch new <BRANCH_NAME>
-  branch delete <BRANCH_NAME>
-  branch switch <BRANCH_NAME>
-  branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
-  commit '<MESSAGE>'
-Installation commands:
+  Information:
+    status
+  Initialization:
+    [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]
+    [-p|--policy policy1[,policy2] ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]
+  Modification:
+    [-p|--policy {ask}|add|show] scrape
+    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>
+    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>
+    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>
+    remove <PACKAGE_NAME>
+    remove_by_url <PACKAGE_URL>
+    [-p|--policy {keep}|replace] merge <LIST_FILENAME>
+Package repository commands:
+  Global:
+    [-j|--jobs <NUM_THREADS> {1}] [-p|--policy policy1[,policy2] ({default}|shallow|nolfs|rebase)] update
+    [-j|--jobs <NUM_THREADS> {1}] clean
+    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
+    prune
+    push
+    branch show ['<GREP_PATTERN>']
+    branch new <BRANCH_NAME>
+    branch delete <BRANCH_NAME>
+    branch switch <BRANCH_NAME>
+    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
+    commit '<MESSAGE>'
+  Local:
+    unshallow <PACKAGE_NAME>
+wshandler installation commands:
   install_test_deps
   [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>
 ```
