@@ -17,5 +17,5 @@ jobs:
                 files: |
                     build/appimage/wshandler*.AppImage
                     build/appimage/wshandler*.zsync
-                    build/appimage/usr/bin/wshandler
+                    build/appimage/AppDir_x86_64/usr/bin/wshandler
                 fail_on_unmatched_files: true
