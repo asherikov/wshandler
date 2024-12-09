@@ -130,8 +130,9 @@ appimage:
 	# --appimage-extract-and-run to avoid dependency on fuse in CI
 	cd build/appimage \
 		&& ./appimagetool-x86_64.AppImage \
-		--updateinformation "gh-releases-zsync|asherikov|wshandler|latest|wshandler-${ARCH}.AppImage.zsync" \
 		AppDir_${ARCH} wshandler-${ARCH}.AppImage
+	# broken?
+	# --updateinformation "gh-releases-zsync|asherikov|wshandler|latest|wshandler-${ARCH}.AppImage.zsync"
 
 appimage_deps:
 	sudo apt install -y --no-install-recommends desktop-file-utils zsync

@@ -14,8 +14,8 @@ jobs:
             - run: ./build/appimage/wshandler-x86_64.AppImage -r tests/update status
             - uses: softprops/action-gh-release@v2
               with:
+                # build/appimage/wshandler*.AppImage.zsync
                 files: |
                     build/appimage/wshandler*.AppImage
-                    build/appimage/wshandler*.zsync
                     build/appimage/AppDir_x86_64/usr/bin/wshandler
                 fail_on_unmatched_files: true
