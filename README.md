@@ -85,6 +85,8 @@ Package repository commands:
 wshandler installation commands:
   install_test_deps
   [-p|--policy {skip_yq}|snap|download] install <BIN_PATH {~/bin}>
+  upgrade <BIN_PATH {~/bin}>
+  upgrade_appimage <BIN_PATH {~/bin}>
 ```
 
 Examples
