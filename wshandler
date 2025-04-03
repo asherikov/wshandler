@@ -165,7 +165,8 @@ git_update()
                                 ;;
                         esac
                     done
-                    "${PULL_ENV[@]}" git pull "${PULL_ARGS[@]}"
+                    # do not fail, e.g., the branch might be deleted from git remote
+                    "${PULL_ENV[@]}" git pull "${PULL_ARGS[@]}" || true
                 fi
             fi
         fi
