@@ -3,11 +3,11 @@ Introduction
 
 `wshandler` is a workspace management utility similar to
 <https://github.com/dirk-thomas/vcstool>,
-<https://github.com/ErickKramer/ripvcs/> and discontinued
+<https://github.com/ErickKramer/ripvcs/>, and discontinued
 <https://github.com/vcstools/wstool>. A workspace is a directory containing a
 set of packages (typically git repositories) under development, see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
-or <http://wiki.ros.org/catkin/workspaces for more information>.
+or <http://wiki.ros.org/catkin/workspaces> for more information.
 
 Key features:
 - `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, e.g.,
