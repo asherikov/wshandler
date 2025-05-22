@@ -2,9 +2,10 @@ Introduction
 ============
 
 `wshandler` is a workspace management utility similar to
-<https://github.com/dirk-thomas/vcstool> and discontinued
-<https://github.com/vcstools/wstool>. A workspace is a directory containing a set
-of packages (typically git repositories) under development, see
+<https://github.com/dirk-thomas/vcstool>,
+<https://github.com/ErickKramer/ripvcs/> and discontinued
+<https://github.com/vcstools/wstool>. A workspace is a directory containing a
+set of packages (typically git repositories) under development, see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
 or <http://wiki.ros.org/catkin/workspaces for more information>.
 
@@ -81,6 +82,7 @@ Package repository commands:
     commit '<MESSAGE>'
   Local:
     unshallow <PACKAGE_NAME>
+    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update <PACKAGE_NAME>
 
 wshandler installation commands:
   install_test_deps

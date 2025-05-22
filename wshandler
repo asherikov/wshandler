@@ -63,6 +63,7 @@ help()
     echo "    commit '<MESSAGE>'"
     echo "  Local:"
     echo "    unshallow <PACKAGE_NAME>"
+    echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update <PACKAGE_NAME>"
     echo ""
     echo "wshandler installation commands:"
     echo "  install_test_deps"
@@ -330,6 +331,20 @@ dir_git_status()
     echo "${NAME}|${GIT_VERSION}|${GIT_ACTUAL_VERSION}|${FLAGS}|${GIT_REPO}"
 }
 
+
+dir_git_unshallow()
+{
+    GIT_DIR="${WSH_WORKSPACE_ROOT}/$1"
+
+    echo "Unshallowing ${GIT_DIR}"
+    cd "${GIT_DIR}"
+
+    git fetch --unshallow
+    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+    git fetch origin
+}
+
+
 dir_git_update()
 {
     GIT_DIR="${WSH_WORKSPACE_ROOT}/$1"
@@ -340,7 +355,7 @@ dir_git_update()
 
     mkdir -p "${GIT_DIR}"
     cd "${GIT_DIR}"
-    echo "Processing ${GIT_DIR}"
+    echo "Updating ${GIT_DIR}"
     if [ -d ".git" ]
     then
         git fetch
@@ -651,10 +666,10 @@ execute_init()
     fi
 }
 
-
-execute_unshallow()
+execute_local_command()
 {
-    TARGET_NAME="$1"
+    COMMAND_NAME="$1"
+    TARGET_NAME="$2"
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
@@ -666,11 +681,7 @@ execute_unshallow()
                     REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"
                     if [ -d "${REPO_DIR}/.git" ]; \
                     then \
-                        echo "${NAME}: unshallowing"; \
-                        cd "${REPO_DIR}"; \
-                        git fetch --unshallow; \
-                        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; \
-                        git fetch origin; \
+                        "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
                         exit; \
                     else \
                         echo "${NAME}: is not a git repository'"; \
@@ -800,16 +811,31 @@ do
             "execute_$1" "${@:2}"
             exit;;
 
-        status|update|clean|scrape)
+        status|clean|scrape)
             check_workspace "$1"
             execute_command "$1"
+            exit;;
+
+        update)
+            check_workspace "$1"
+            if [ -z "$2" ]
+            then
+                execute_command "$1"
+            else
+                execute_local_command "${@}"
+            fi
+            exit;;
+
+        unshallow)
+            check_workspace "$1"
+            execute_local_command "${@}"
             exit;;
 
         is_source_space)
             check_workspace "is_source_space"
             exit;;
 
-        add|remove|merge|remove_by_url|foreach|prune|push|branch|commit|set_version_branch|unshallow)
+        add|remove|merge|remove_by_url|foreach|prune|push|branch|commit|set_version_branch)
             check_workspace "$1"
             "execute_$1" "${@:2}"
             exit;;

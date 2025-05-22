@@ -34,6 +34,7 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./ is_source_space
 	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow staticoma
+	${WSHANDLER} -t ${TYPE} -r tests/update/ update staticoma
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -l .${TYPE} status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} status
