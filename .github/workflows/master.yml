@@ -6,13 +6,6 @@ on:
         types: [opened, reopened]
 
 jobs:
-    ubuntu20:
-        runs-on: ubuntu-20.04
-        steps:
-            - uses: actions/checkout@v4
-            - run: ./wshandler install_test_deps
-            - run: make test
-
     ubuntu22:
         runs-on: ubuntu-22.04
         steps:
@@ -39,6 +32,13 @@ jobs:
             - run: make test WSHANDLER=wshandler
             - run: sudo ./wshandler upgrade /usr/bin/
             - run: wshandler --version
+
+    ubuntu24:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - run: ./wshandler install_test_deps
+            - run: make test
 
     appimage:
         runs-on: ubuntu-latest
