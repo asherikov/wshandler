@@ -1,10 +1,12 @@
-TYPE?=rosinstall
-WSHANDLER?=./wshandler
+TYPE?=repos
+YAML_TOOL?=gojq
+WSHANDLER?=./wshandler -y ${YAML_TOOL}
 
 test: shellcheck
 	@${MAKE} test_type TYPE=rosinstall
 	@${MAKE} test_type TYPE=repos
 	@${MAKE} test_root_git
+	rm -rf tests/clone
 	${WSHANDLER} -r tests/clone -p shallow clone git https://github.com/asherikov/sharf.git main
 
 test_type:
@@ -70,6 +72,7 @@ test_remove:
 	${WSHANDLER} -t ${TYPE} --root tests/remove/ remove_by_url "https://github.com/ros-gbp/catkin-release.git"
 
 test_init:
+	rm -rf tests/init_${TYPE} tests/init_${TYPE}_nolfs
 	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE} -p shallow init git https://github.com/asherikov/staticoma.git
 	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE}_nolfs -p shallow,nolfs init git https://github.com/asherikov/staticoma.git
 
@@ -131,7 +134,7 @@ appimage:
 	# --appimage-extract-and-run to avoid dependency on fuse in CI
 	cd build/appimage \
 		&& ./appimagetool-x86_64.AppImage \
-		AppDir_${ARCH} wshandler-${ARCH}.AppImage
+		AppDir_${ARCH} wshandler-yq-${ARCH}.AppImage
 	# broken?
 	# --updateinformation "gh-releases-zsync|asherikov|wshandler|latest|wshandler-${ARCH}.AppImage.zsync"
 
