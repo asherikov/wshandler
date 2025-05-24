@@ -6,6 +6,19 @@ on:
         types: [opened, reopened]
 
 jobs:
+    ubuntu20-download-yq:
+        container: ubuntu:focal
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+            - run: apt update
+            - run: apt upgrade -y
+            - run: env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends bash git sudo ca-certificates make
+            - run: ./wshandler install_test_deps
+            - run: ./wshandler -y yq --policy download install /usr/bin/
+            - run: make test YAML_TOOL="auto"
+
     ubuntu22-gojq:
         runs-on: ubuntu-22.04
         steps:

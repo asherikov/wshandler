@@ -1,5 +1,5 @@
-#!/usr/bin/bash -x
 #!/usr/bin/env bash
+#!/usr/bin/bash -x
 # shellcheck disable=SC2317
 
 set -e
@@ -24,7 +24,7 @@ help()
     echo "  (VALID OPTIONS IN A LIST)"
     echo ""
     echo "Common arguments:"
-    echo "  -y|--yaml_tool gojq|yq          {gojq}                  # use gojq or yq"
+    echo "  -y|--yaml_tool auto|gojq|yq     {auto}                  # use gojq or yq, auto prefers gojq"
     echo "  -Y|--yaml_binary <BINARY_PATH>  {yq|gojq}               # override yaml tool (yq/gojq) path"
     echo "  -r|--root <WORKSPACE_ROOT>      {./}                    # parent of --list if it is a path"
     echo "  -c|--cache <CACHE_DIR>          {<WORKSPACE_ROOT>}      # temporary files created here"
@@ -444,20 +444,40 @@ dir_git_merge()
 
 check_workspace()
 {
-    if ! command -v "${WSH_YAML_TOOL_BINARY}" > /dev/null
+    if [ "${WSH_YAML_TOOL}" = "auto" ]
     then
-        WSH_YAML_TOOL_BINARY="${WSH_YAML_TOOL}"
-        if ! command -v "${WSH_YAML_TOOL_BINARY}" > /dev/null
+        YAML_TOOL_LIST=(gojq yq)
+    else
+        YAML_TOOL_LIST=("${WSH_YAML_TOOL}")
+    fi
+
+    for YAML_TOOL in "${YAML_TOOL_LIST[@]}"
+    do
+        WSH_YAML_TOOL="${YAML_TOOL}"
+        if ! command -v "${WSH_YAML_BINARY}" > /dev/null
         then
-            WSH_YAML_TOOL_BINARY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/${WSH_YAML_TOOL}"
-            command -v "${WSH_YAML_TOOL_BINARY}" > /dev/null || (echo "'${WSH_YAML_TOOL}' is not installed" && false)
+            WSH_YAML_BINARY="${YAML_TOOL}"
+            if ! command -v "${WSH_YAML_BINARY}" > /dev/null
+            then
+                WSH_YAML_BINARY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/${YAML_TOOL}"
+                if ! command -v "${WSH_YAML_BINARY}" > /dev/null
+                then
+                    WSH_YAML_TOOL=""
+                fi
+            fi
         fi
+    done
+
+    if [ -z "${WSH_YAML_TOOL}" ]
+    then
+        echo "Cannot find gojq or yq."
+        exit 22
     fi
 
     case "${WSH_YAML_TOOL}" in
-        yq) WSH_YAML_CMD=("${WSH_YAML_TOOL_BINARY}" --indent "${WSH_INDENT}")
+        yq) WSH_YAML_CMD=("${WSH_YAML_BINARY}" --indent "${WSH_INDENT}")
             ;;
-        gojq) WSH_YAML_CMD=("${WSH_YAML_TOOL_BINARY}" --yaml-input --indent="${WSH_INDENT}")
+        gojq) WSH_YAML_CMD=("${WSH_YAML_BINARY}" --yaml-input "--indent=${WSH_INDENT}")
             ;;
         *)
             echo "'${WSH_YAML_TOOL}' is not a valid yaml tool.";
@@ -496,7 +516,7 @@ check_workspace()
         esac
     fi
 
-    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -y "${WSH_YAML_TOOL}" -Y "${WSH_YAML_TOOL_BINARY}" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE}" -p "${WSH_COMMAND_POLICY}")
+    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -y "${WSH_YAML_TOOL}" -Y "${WSH_YAML_BINARY}" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE}" -p "${WSH_COMMAND_POLICY}")
     if [ -n "${WSH_KEEP_GOING}" ]
     then
         WSHANDLER+=("${WSH_KEEP_GOING}")
@@ -822,20 +842,20 @@ wsh_download()
 {
     if ! command -v "wget" > /dev/null
     then
-        apt_install wget
+        apt_install wget 1>&2
     fi
     wget -O - "$@"
 }
 
 
-WSH_YAML_TOOL="gojq"
+WSH_YAML_TOOL="auto"
 WSH_SOURCE_TYPES="git"
 WSH_COMMAND_POLICY=default
 WSH_JOBS=1
 WSH_INDENT=4
 WSH_XARGS=(xargs --no-run-if-empty -L 1 -P "${WSH_JOBS}")
 WSH_KEEP_GOING=""
-WSH_YAML_TOOL_BINARY=
+WSH_YAML_BINARY=
 WSH_SOURCE_TYPE="git"
 WSH_REPOLIST=
 WSH_SORT_COMMAND="sort"
@@ -858,7 +878,7 @@ do
             shift; shift;;
 
         -Y|--yaml_binary)
-            WSH_YAML_TOOL_BINARY=$2
+            WSH_YAML_BINARY=$2
             shift; shift;;
 
         -r|--root)
@@ -969,12 +989,12 @@ do
                 skip_yaml_tool|yq_skip|default) exit;;
             esac
 
-            if [ -z "${WSH_YAML_TOOL_BINARY}" ]
+            if [ -z "${WSH_YAML_BINARY}" ]
             then
-                WSH_YAML_TOOL_BINARY="${WSH_YAML_TOOL}"
+                WSH_YAML_BINARY="${WSH_YAML_TOOL}"
             fi
 
-            if ! command -v "${WSH_YAML_TOOL_BINARY}" > /dev/null
+            if ! command -v "${WSH_YAML_BINARY}" > /dev/null
             then
                 case ${WSH_YAML_TOOL} in
                     yq)
@@ -987,9 +1007,9 @@ do
                                 snap_install yq
                                 ;;
                             download)
-                                wsh_download "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture).tar.gz" \
-                                    | tar -zxO > "${BIN_PATH}/yq"
+                                wsh_download "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture)" > "${BIN_PATH}/yq"
                                 chmod +x "${BIN_PATH}/yq"
+                                yq
                                 ;;
                             *)
                                 echo "Unsupported installation policy.";

@@ -47,7 +47,7 @@ Notation:
   (VALID OPTIONS IN A LIST)
 
 Common arguments:
-  -y|--yaml_tool gojq|yq          {gojq}                  # use gojq or yq
+  -y|--yaml_tool auto|gojq|yq     {auto}                  # use gojq or yq, auto prefers gojq
   -Y|--yaml_binary <BINARY_PATH>  {yq|gojq}               # override yaml tool (yq/gojq) path
   -r|--root <WORKSPACE_ROOT>      {./}                    # parent of --list if it is a path
   -c|--cache <CACHE_DIR>          {<WORKSPACE_ROOT>}      # temporary files created here
