@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#!/usr/bin/bash -x
+#!/usr/local/bin/bash -x
 # shellcheck disable=SC2317
 
 set -e
@@ -599,10 +599,15 @@ repos_gojq_merge()
 execute_merge()
 {
     INPUT_FILE=$1
-    if [ -f "${INPUT_FILE}" ] && [ ! "${WSH_REPOLIST}" -ef "${INPUT_FILE}" ]
+    if [ -s "${INPUT_FILE}" ] && [ ! "${WSH_REPOLIST}" -ef "${INPUT_FILE}" ]
     then
-        backup
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${INPUT_FILE}"
+        if [ -s "${WSH_REPOLIST}" ]
+        then
+            backup
+            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${INPUT_FILE}"
+        else
+            cp "${INPUT_FILE}" "${WSH_REPOLIST}"
+        fi
     else
         help 10;
     fi
@@ -672,7 +677,7 @@ rosinstall_yq_git_add()
 rosinstall_gojq_git_add()
 {
     ENTRY="[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]"
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].\"local-name\" == \"$2\"))" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --yaml-output ". + ${ENTRY}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].\"local-name\" == \"$2\"))" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // [] | . + ${ENTRY}" > "${WSH_REPOLIST}"
 }
 
 repos_yq_git_add()
@@ -684,7 +689,7 @@ repos_yq_git_add()
 repos_gojq_git_add()
 {
     ENTRY="{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}"
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.\"$2\")" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --yaml-output ". * {\"repositories\": ${ENTRY}}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.\"$2\")" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // {} | . * {\"repositories\": ${ENTRY}}" > "${WSH_REPOLIST}"
 }
 
 execute_add()
@@ -1015,7 +1020,6 @@ do
                             download)
                                 wsh_download "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture)" > "${BIN_PATH}/yq"
                                 chmod +x "${BIN_PATH}/yq"
-                                yq
                                 ;;
                             *)
                                 echo "Unsupported installation policy.";

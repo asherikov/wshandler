@@ -54,11 +54,14 @@ test_scrape:
 	cd tests/scrape; git clone https://github.com/asherikov/staticoma.git
 	cd tests/scrape; git clone https://github.com/asherikov/qpmad.git
 	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape
+	test -s tests/scrape/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/scrape status
 
 test_merge:
 	rm -rf tests/merge
-	cp -r tests/merge_a tests/merge
+	mkdir -p tests/merge
+	touch tests/merge/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/merge merge tests/merge_a/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/merge status
 	${WSHANDLER} -t ${TYPE} -r tests/merge merge tests/merge_b/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/merge status
