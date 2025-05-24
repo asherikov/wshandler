@@ -454,18 +454,24 @@ check_workspace()
     for YAML_TOOL in "${YAML_TOOL_LIST[@]}"
     do
         WSH_YAML_TOOL="${YAML_TOOL}"
-        if ! command -v "${WSH_YAML_BINARY}" > /dev/null
+        if command -v "${WSH_YAML_BINARY}" > /dev/null
         then
-            WSH_YAML_BINARY="${YAML_TOOL}"
-            if ! command -v "${WSH_YAML_BINARY}" > /dev/null
-            then
-                WSH_YAML_BINARY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/${YAML_TOOL}"
-                if ! command -v "${WSH_YAML_BINARY}" > /dev/null
-                then
-                    WSH_YAML_TOOL=""
-                fi
-            fi
+            break
         fi
+
+        WSH_YAML_BINARY="${YAML_TOOL}"
+        if command -v "${WSH_YAML_BINARY}" > /dev/null
+        then
+            break
+        fi
+
+        WSH_YAML_BINARY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/${YAML_TOOL}"
+        if command -v "${WSH_YAML_BINARY}" > /dev/null
+        then
+            break
+        fi
+
+        WSH_YAML_TOOL=""
     done
 
     if [ -z "${WSH_YAML_TOOL}" ]
@@ -1024,6 +1030,9 @@ do
                                 echo "Unsupported installation policy.";
                                 exit 5;;
                         esac;;
+                    auto)
+                        echo "Automatic yaml tool detection is not supported for this command.";
+                        exit 5;;
                 esac
             fi
             exit;;
