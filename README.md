@@ -25,12 +25,12 @@ Installation
 
 `wshandler` is a bash script that can be placed anywhere, e.g., your
 `${HOME}/bin`. It requires `bash`, `git` and either `gojq` (default) or `yq` to
-work. `gojq` is available via binary packages on many modern systems, `yq` is
-currently considered obsolete and may be removed in the future. However, you
-can still download an AppImage bundle including `wshandler` and `yq` from
-<https://github.com/asherikov/wshandler/releases> (`git` and `bash` must be
-present on the host system). `wshandler` provides a helper command that
-installs dependencies on Ubuntu.
+work. `gojq` is available via binary packages on many modern systems, but has
+certain limitations, e.g., it always sorts entries and does not preserve
+comments. `yq` is not available via debian packages on Ubuntu, but can be
+installed using `snap`. You can also find an AppImage bundle including
+`wshandler` and `yq` at <https://github.com/asherikov/wshandler/releases>
+(`git` and `bash` must be present on the host system).
 
 
 Usage
