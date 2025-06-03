@@ -1069,7 +1069,7 @@ do
             BIN_PATH=${2:-"${HOME}/bin"}
             mkdir -p "${BIN_PATH}"
 
-            wsh_download "https://github.com/asherikov/wshandler/releases/latest/download/wshandler-$(uname -m).AppImage" > "${BIN_PATH}/wshandler"
+            wsh_download "https://github.com/asherikov/wshandler/releases/latest/download/wshandler-yq-$(uname -m).AppImage" > "${BIN_PATH}/wshandler"
             chmod +x "${BIN_PATH}/wshandler"
             exit;;
 
