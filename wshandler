@@ -41,7 +41,7 @@ help()
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]"
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]"
     echo "  Modification:"
-    echo "    [-p|--policy {ask}|add|show] scrape"
+    echo "    [-p|--policy {ask}|add|show] scrape <DIRECTORY {<WORKSPACE_ROOT>}>"
     echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>"
@@ -159,7 +159,7 @@ git_status()
     echo
 
     WSH_COMMAND_POLICY=show
-    git_scrape
+    git_scrape "${WSH_WORKSPACE_ROOT}"
 }
 
 git_update()
@@ -209,13 +209,19 @@ git_clean()
 
 git_scrape()
 {
-    GIT_DIRS=$(cd "${WSH_WORKSPACE_ROOT}" && find ./ -mindepth 2 -type d -name ".git" | sed -e 's|^./||' -e "s|/.git$||" | sort)
+    SCRAPE_ROOT=$(realpath "$1")
+    FIND_ARGS=()
+    if [ "${WSH_WORKSPACE_ROOT}" -ef "${SCRAPE_ROOT}" ]
+    then
+        FIND_ARGS+=(-mindepth 2)
+    fi
+    GIT_DIRS=$(cd "${SCRAPE_ROOT}" && find ./ "${FIND_ARGS[@]}" -type d -name ".git" | sed -e 's|^./||' -e "s|/.git$||" | sort)
     UNKNOWN_GIT_DIRS=$(comm -2 -3 <(echo "${GIT_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" | sort))
 
     for GIT_DIR in ${UNKNOWN_GIT_DIRS}
     do
         echo "Processing ${GIT_DIR}"
-        cd "${WSH_WORKSPACE_ROOT}/${GIT_DIR}"
+        cd "${SCRAPE_ROOT}/${GIT_DIR}"
         GIT_REPO=$(git remote get-url origin | tr -d '\n' || true)
 
         if [ "${GIT_REPO}" == "" ]
@@ -535,7 +541,7 @@ execute_command()
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
         echo ">>> wshandler $1: ${SOURCE_TYPE} sources ---"
-        "${SOURCE_TYPE}_$1"
+        "${SOURCE_TYPE}_$1" "${@:2}"
         echo "<<< wshandler $1: ${SOURCE_TYPE} sources ---"
     done
 }
@@ -936,9 +942,19 @@ do
             "execute_$1" "${@:2}"
             exit;;
 
-        status|clean|scrape)
+        status|clean)
             check_workspace "$1"
             execute_command "$1"
+            exit;;
+
+        scrape)
+            check_workspace "$1"
+            if [ -z "$2" ]
+            then
+                execute_command "$1" "${WSH_WORKSPACE_ROOT}"
+            else
+                execute_command "${@}"
+            fi
             exit;;
 
         update)

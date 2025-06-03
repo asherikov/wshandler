@@ -51,9 +51,18 @@ test_update:
 test_scrape:
 	rm -rf tests/scrape
 	mkdir -p tests/scrape
-	cd tests/scrape; git clone https://github.com/asherikov/staticoma.git
-	cd tests/scrape; git clone https://github.com/asherikov/qpmad.git
+	cd tests/scrape; git clone --depth 1 https://github.com/asherikov/staticoma.git
+	cd tests/scrape; git clone --depth 1 https://github.com/asherikov/qpmad.git
 	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape
+	test -s tests/scrape/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/scrape status
+	rm tests/scrape/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape tests/scrape
+	test -s tests/scrape/.${TYPE}
+	rm tests/scrape/.${TYPE}
+	mkdir -p tests/scrape/test
+	mv tests/scrape/qpmad tests/scrape/test
+	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape tests/scrape/test
 	test -s tests/scrape/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/scrape status
 

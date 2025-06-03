@@ -64,7 +64,7 @@ List commands:
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]
   Modification:
-    [-p|--policy {ask}|add|show] scrape
+    [-p|--policy {ask}|add|show] scrape <DIRECTORY {<WORKSPACE_ROOT>}>
     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>
