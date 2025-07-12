@@ -45,8 +45,8 @@ help()
     echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>"
-    echo "    remove <PACKAGE_NAME>"
-    echo "    remove_by_url <PACKAGE_URL>"
+    echo "    remove <PACKAGE_NAME> ..."
+    echo "    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]"
     echo "    [-p|--policy {keep}|replace] merge <LIST_FILENAME>"
     echo ""
     echo "Package repository commands:"
@@ -63,8 +63,8 @@ help()
     echo "    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>"
     echo "    commit '<MESSAGE>'"
     echo "  Local:"
-    echo "    unshallow <PACKAGE_NAME>"
-    echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update <PACKAGE_NAME>"
+    echo "    unshallow <PACKAGE_NAME> ..."
+    echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]"
     echo ""
     echo "wshandler installation commands:"
     echo "  install_test_deps"
@@ -643,7 +643,10 @@ repos_gojq_remove()
 execute_remove()
 {
     backup
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "$@"
+    for PKG_NAME in "$@"
+    do
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "${PKG_NAME}"
+    done
 }
 
 
@@ -670,7 +673,10 @@ repos_gojq_remove_by_url()
 execute_remove_by_url()
 {
     backup
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove_by_url" "$@"
+    for PKG_URL in "$@"
+    do
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove_by_url" "${PKG_URL}"
+    done
 }
 
 
@@ -794,26 +800,28 @@ execute_init()
 execute_local_command()
 {
     COMMAND_NAME="$1"
-    TARGET_NAME="$2"
 
-    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+    for TARGET_NAME in "${@:2}"
     do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
-            | while read -r NAME REPO VERSION; \
-            do \
-                if [ "${TARGET_NAME}" = "${NAME}" ];\
-                then \
-                    REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"
-                    if [ -d "${REPO_DIR}/.git" ]; \
+        for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+        do
+            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
+                | while read -r NAME REPO VERSION; \
+                do \
+                    if [ "${TARGET_NAME}" = "${NAME}" ];\
                     then \
-                        "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
-                        exit; \
-                    else \
-                        echo "${NAME}: is not a git repository'"; \
-                        exit 40; \
-                    fi \
-                fi; \
-            done
+                        REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"
+                        if [ -d "${REPO_DIR}/.git" ]; \
+                        then \
+                            "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
+                            exit; \
+                        else \
+                            echo "${NAME}: is not a git repository'"; \
+                            exit 40; \
+                        fi \
+                    fi; \
+                done
+        done
     done
 }
 

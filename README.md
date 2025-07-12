@@ -68,8 +68,8 @@ List commands:
     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>
-    remove <PACKAGE_NAME>
-    remove_by_url <PACKAGE_URL>
+    remove <PACKAGE_NAME> ...
+    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]
     [-p|--policy {keep}|replace] merge <LIST_FILENAME>
 
 Package repository commands:
@@ -86,8 +86,8 @@ Package repository commands:
     branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
     commit '<MESSAGE>'
   Local:
-    unshallow <PACKAGE_NAME>
-    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update <PACKAGE_NAME>
+    unshallow <PACKAGE_NAME> ...
+    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]
 
 wshandler installation commands:
   install_test_deps
