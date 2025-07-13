@@ -162,13 +162,13 @@ git_status()
     git_scrape "${WSH_WORKSPACE_ROOT}"
 }
 
-git_update()
+update_root()
 {
     IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
 
     if [ -d "${WSH_WORKSPACE_ROOT}/.git" ]
     then
-        pushd "${WSH_WORKSPACE_ROOT}"
+        pushd "${WSH_WORKSPACE_ROOT}" > /dev/null
         if [ -n "$(git remote show)" ]
         then
             echo "Processing workspace root ${WSH_WORKSPACE_ROOT}"
@@ -196,10 +196,8 @@ git_update()
                 fi
             fi
         fi
-        popd
+        popd > /dev/null
     fi
-
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_triplets" | "${WSH_XARGS[@]}" "${WSHANDLER[@]}" dir_git_update
 }
 
 git_clean()
@@ -298,9 +296,9 @@ git_clone()
             # GIT_VERSION is a hash
             # clone with history to be able to find it
             "${CLONE_ENV[@]}" git clone --recurse-submodules "${SOURCE_DESTINATION[@]}"
-            pushd "${DIR}"
+            pushd "${DIR}" > /dev/null
             "${CLONE_ENV[@]}" git checkout "${VERSION}"
-            popd
+            popd > /dev/null
         fi
     fi
 }
@@ -365,9 +363,11 @@ dir_git_status()
 
 dir_git_unshallow()
 {
-    git fetch --unshallow
-    git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-    git fetch origin
+    if git fetch --unshallow
+    then
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin
+    fi
 }
 
 dir_git_prune()
@@ -388,9 +388,6 @@ dir_git_update()
 
     IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
 
-    mkdir -p "${GIT_DIR}"
-    cd "${GIT_DIR}"
-    echo "Updating ${GIT_DIR}"
     if [ -d ".git" ]
     then
         git fetch
@@ -449,6 +446,15 @@ dir_git_merge()
 
         git checkout "${TARGET_BRANCH}"
         git merge "${BRANCH}"
+    fi
+}
+
+dir_git_assert()
+{
+    if [ ! -d "$1/.git" ]
+    then
+        echo "${NAME}: is not a git repository'"
+        exit 40
     fi
 }
 
@@ -765,7 +771,7 @@ execute_clone()
     "$1_clone" "$2" "$3" "${WSH_WORKSPACE_ROOT}"
 
     check_workspace update
-    execute_command update
+    execute_selective_command update
 }
 
 execute_init()
@@ -775,13 +781,13 @@ execute_init()
     if [ "$1" == "git" ]
     then
         shift
-        pushd "${WSH_WORKSPACE_ROOT}"
+        pushd "${WSH_WORKSPACE_ROOT}" > /dev/null
         while [[ $# -gt 0 ]]
         do
             git_clone "$1"
             shift
         done
-        popd
+        popd > /dev/null
 
         check_workspace init
         "${WSHANDLER[@]}" -p add scrape
@@ -795,22 +801,21 @@ execute_selective_command()
     COMMAND_NAME="$1"
     TARGETS=("${@:2}")
 
+    if [ "${COMMAND_NAME}" == "update" ]
+    then
+        update_root
+    fi
+
     if [ -z "$2" ]
     then
         for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
         do
-            case ${COMMAND_NAME} in
-                prune|push|unshallow)
-                    TARGETS+=("$("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_names")")
-                    ;;
-                update)
-                    "${SOURCE_TYPE}_${COMMAND_NAME}"
-                    ;;
-            esac
+            mapfile -t "SOURCE_TYPE_TARGETS" < <( "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_names" )
+            TARGETS+=("${SOURCE_TYPE_TARGETS[@]}")
         done
     fi
 
-
+    PROCESSED_TARGETS=()
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
@@ -823,20 +828,21 @@ execute_selective_command()
                         continue; \
                     fi; \
                     REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"; \
-                    if [ ! -d "${REPO_DIR}/.git" ]; \
+                    if [ "${COMMAND_NAME}" == "update" ]; \
                     then \
-                        echo "${NAME}: is not a git repository'"; \
-                        exit 40; \
+                        mkdir -p "${REPO_DIR}"; \
+                    else \
+                        "dir_${SOURCE_TYPE}_assert" "${REPO_DIR}"; \
                     fi; \
                     echo "Performing '${COMMAND_NAME}' on '${NAME}'"; \
-                    pushd "${REPO_DIR}"; \
-                    "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
-                    popd; \
-                    if [ "${#TARGETS[@]}" -eq "1" ]; \
+                    pushd "${REPO_DIR}" > /dev/null; \
+                    "dir_${SOURCE_TYPE}_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
+                    popd > /dev/null; \
+                    PROCESSED_TARGETS+=("${NAME}"); \
+                    if [ "${#TARGETS[@]}" -eq "${#PROCESSED_TARGETS[@]}" ]; \
                     then \
                         return; \
                     fi; \
-                    TARGETS=("${TARGETS[@]/${NAME}}"); \
                     break; \
                 done \
             done
