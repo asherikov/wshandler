@@ -34,6 +34,10 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ -u status
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	test -d tests/update/staticoma
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean staticoma
+	! test -d tests/update/staticoma
+	test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
@@ -71,6 +75,11 @@ test_scrape:
 	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy add scrape tests/scrape/test
 	test -s tests/scrape/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/scrape status
+	rm tests/scrape/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy clean scrape
+	! test -s tests/scrape/.${TYPE}
+	! test -d tests/scrape/staticoma
+	! test -d tests/scrape/test/qpmad
 
 test_merge:
 	rm -rf tests/merge

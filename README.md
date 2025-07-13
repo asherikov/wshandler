@@ -64,7 +64,7 @@ List commands:
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]
   Modification:
-    [-p|--policy {ask}|add|show] scrape <DIRECTORY {<WORKSPACE_ROOT>}>
+    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>
     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>
     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>
@@ -75,7 +75,6 @@ List commands:
 Package repository commands:
   All packages:
     [-j|--jobs <NUM_THREADS> {1}] [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update
-    [-j|--jobs <NUM_THREADS> {1}] clean
     [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
     branch show ['<GREP_PATTERN>']
     branch new <BRANCH_NAME>
@@ -87,6 +86,7 @@ Package repository commands:
     prune [<PACKAGE_NAME> ...]
     push [<PACKAGE_NAME> ...]
     unshallow [<PACKAGE_NAME> ...]
+    [-j|--jobs <NUM_THREADS> {1}] clean [<PACKAGE_NAME> ...]
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]
 
 wshandler installation commands:

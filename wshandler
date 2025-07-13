@@ -41,7 +41,7 @@ help()
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]"
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]"
     echo "  Modification:"
-    echo "    [-p|--policy {ask}|add|show] scrape <DIRECTORY {<WORKSPACE_ROOT>}>"
+    echo "    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>"
     echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>"
     echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>"
@@ -52,7 +52,6 @@ help()
     echo "Package repository commands:"
     echo "  All packages:"
     echo "    [-j|--jobs <NUM_THREADS> {1}] [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update"
-    echo "    [-j|--jobs <NUM_THREADS> {1}] clean"
     echo "    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'"
     echo "    branch show ['<GREP_PATTERN>']"
     echo "    branch new <BRANCH_NAME>"
@@ -64,6 +63,7 @@ help()
     echo "    prune [<PACKAGE_NAME> ...]"
     echo "    push [<PACKAGE_NAME> ...]"
     echo "    unshallow [<PACKAGE_NAME> ...]"
+    echo "    [-j|--jobs <NUM_THREADS> {1}] clean [<PACKAGE_NAME> ...]"
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]"
     echo ""
     echo "wshandler installation commands:"
@@ -200,11 +200,6 @@ update_root()
     fi
 }
 
-git_clean()
-{
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" | while read -r NAME; do rm -rf "${WSH_WORKSPACE_ROOT:?}/${NAME}"; done
-}
-
 git_scrape()
 {
     SCRAPE_ROOT=$(realpath "$1")
@@ -219,7 +214,8 @@ git_scrape()
     for GIT_DIR in ${UNKNOWN_GIT_DIRS}
     do
         echo "Processing ${GIT_DIR}"
-        cd "${SCRAPE_ROOT}/${GIT_DIR}"
+        REPO_DIR="${SCRAPE_ROOT}/${GIT_DIR}"
+        pushd "${REPO_DIR}" > /dev/null
         GIT_REPO=$(git remote get-url origin | tr -d '\n' || true)
 
         if [ "${GIT_REPO}" == "" ]
@@ -230,6 +226,8 @@ git_scrape()
         GIT_VERSION=$(git branch --show-current | tr -d '\n')
         GIT_VERSION=${GIT_VERSION:-"$(git describe --tags | tr -d '\n')"}
         GIT_VERSION=${GIT_VERSION:-"$(git rev-parse HEAD | tr -d '\n')"}
+
+        popd > /dev/null
 
         echo "Found unmanaged git repository:  ${GIT_DIR}  ${GIT_REPO}  ${GIT_VERSION}"
 
@@ -243,6 +241,9 @@ git_scrape()
                     yn='N';;
                 add)
                     yn='Y';;
+                clean)
+                    rm -rf "${REPO_DIR}";
+                    yn='N';;
                 *)
                     help 20;;
             esac
@@ -815,38 +816,52 @@ execute_selective_command()
         done
     fi
 
-    PROCESSED_TARGETS=()
-    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
-    do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
-            | while read -r NAME REPO VERSION; \
-            do \
-                for TARGET_NAME in "${TARGETS[@]}"; \
-                do \
-                    if [ "${TARGET_NAME}" != "${NAME}" ]; \
-                    then \
-                        continue; \
-                    fi; \
-                    REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"; \
-                    if [ "${COMMAND_NAME}" == "update" ]; \
-                    then \
-                        mkdir -p "${REPO_DIR}"; \
-                    else \
-                        "dir_${SOURCE_TYPE}_assert" "${REPO_DIR}"; \
-                    fi; \
-                    echo "Performing '${COMMAND_NAME}' on '${NAME}'"; \
-                    pushd "${REPO_DIR}" > /dev/null; \
-                    "dir_${SOURCE_TYPE}_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
-                    popd > /dev/null; \
-                    PROCESSED_TARGETS+=("${NAME}"); \
-                    if [ "${#TARGETS[@]}" -eq "${#PROCESSED_TARGETS[@]}" ]; \
-                    then \
-                        return; \
-                    fi; \
-                    break; \
-                done \
-            done
-    done
+
+    case "${COMMAND_NAME}" in
+        clean)
+            for TARGET_NAME in "${TARGETS[@]}";
+            do
+                REPO_DIR="${WSH_WORKSPACE_ROOT:?}/${TARGET_NAME}"
+                if [ ! -d "${REPO_DIR}" ]
+                then
+                    echo "Cannot remove missing '${REPO_DIR}'";
+                fi
+                rm -rf "${WSH_WORKSPACE_ROOT:?}/${TARGET_NAME}";
+            done;;
+        *)
+            PROCESSED_TARGETS=()
+            for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+            do
+                "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
+                    | while read -r NAME REPO VERSION; \
+                    do \
+                        for TARGET_NAME in "${TARGETS[@]}"; \
+                        do \
+                            if [ "${TARGET_NAME}" != "${NAME}" ]; \
+                            then \
+                                continue; \
+                            fi; \
+                            REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"; \
+                            if [ "${COMMAND_NAME}" == "update" ]; \
+                            then \
+                                mkdir -p "${REPO_DIR}"; \
+                            else \
+                                "dir_${SOURCE_TYPE}_assert" "${REPO_DIR}"; \
+                            fi; \
+                            echo "Performing '${COMMAND_NAME}' on '${NAME}'"; \
+                            pushd "${REPO_DIR}" > /dev/null; \
+                            "dir_${SOURCE_TYPE}_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
+                            popd > /dev/null; \
+                            PROCESSED_TARGETS+=("${NAME}"); \
+                            if [ "${#TARGETS[@]}" -eq "${#PROCESSED_TARGETS[@]}" ]; \
+                            then \
+                                return; \
+                            fi; \
+                            break; \
+                        done \
+                    done
+            done;;
+    esac
 }
 
 set_version()
@@ -974,7 +989,7 @@ do
             "execute_$1" "${@:2}"
             exit;;
 
-        status|clean)
+        status)
             check_workspace "$1"
             execute_command "$1"
             exit;;
@@ -989,7 +1004,7 @@ do
             fi
             exit;;
 
-        unshallow|update|prune|push)
+        clean|unshallow|update|prune|push)
             check_workspace "$1"
             execute_selective_command "${@}"
             exit;;
