@@ -73,20 +73,20 @@ List commands:
     [-p|--policy {keep}|replace] merge <LIST_FILENAME>
 
 Package repository commands:
-  Global:
+  All packages:
     [-j|--jobs <NUM_THREADS> {1}] [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update
     [-j|--jobs <NUM_THREADS> {1}] clean
     [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
-    prune
-    push
     branch show ['<GREP_PATTERN>']
     branch new <BRANCH_NAME>
     branch delete <BRANCH_NAME>
     branch switch <BRANCH_NAME>
     branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
     commit '<MESSAGE>'
-  Local:
-    unshallow <PACKAGE_NAME> ...
+  Selected packages:
+    prune [<PACKAGE_NAME> ...]
+    push [<PACKAGE_NAME> ...]
+    unshallow [<PACKAGE_NAME> ...]
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]
 
 wshandler installation commands:

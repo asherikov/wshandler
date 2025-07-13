@@ -5,7 +5,10 @@ WSHANDLER?=./wshandler -y ${YAML_TOOL}
 test: shellcheck
 	@${MAKE} test_type TYPE=rosinstall
 	@${MAKE} test_type TYPE=repos
-	@${MAKE} test_root_git
+	@${MAKE} wrap_test TEST=test_root_git
+	@${MAKE} wrap_test TEST=test_clone_ws
+
+test_clone_ws:
 	rm -rf tests/clone
 	${WSHANDLER} -r tests/clone -p shallow clone git https://github.com/asherikov/sharf.git main
 
@@ -36,6 +39,9 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./ is_source_space
 	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow staticoma
+	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow
+	${WSHANDLER} -t ${TYPE} -r tests/update/ prune staticoma
+	${WSHANDLER} -t ${TYPE} -r tests/update/ prune
 	${WSHANDLER} -t ${TYPE} -r tests/update/ update staticoma
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -l .${TYPE} status

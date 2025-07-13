@@ -50,20 +50,20 @@ help()
     echo "    [-p|--policy {keep}|replace] merge <LIST_FILENAME>"
     echo ""
     echo "Package repository commands:"
-    echo "  Global:"
+    echo "  All packages:"
     echo "    [-j|--jobs <NUM_THREADS> {1}] [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update"
     echo "    [-j|--jobs <NUM_THREADS> {1}] clean"
     echo "    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'"
-    echo "    prune"
-    echo "    push"
     echo "    branch show ['<GREP_PATTERN>']"
     echo "    branch new <BRANCH_NAME>"
     echo "    branch delete <BRANCH_NAME>"
     echo "    branch switch <BRANCH_NAME>"
     echo "    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>"
     echo "    commit '<MESSAGE>'"
-    echo "  Local:"
-    echo "    unshallow <PACKAGE_NAME> ..."
+    echo "  Selected packages:"
+    echo "    prune [<PACKAGE_NAME> ...]"
+    echo "    push [<PACKAGE_NAME> ...]"
+    echo "    unshallow [<PACKAGE_NAME> ...]"
     echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]"
     echo ""
     echo "wshandler installation commands:"
@@ -365,16 +365,20 @@ dir_git_status()
 
 dir_git_unshallow()
 {
-    GIT_DIR="${WSH_WORKSPACE_ROOT}/$1"
-
-    echo "Unshallowing ${GIT_DIR}"
-    cd "${GIT_DIR}"
-
     git fetch --unshallow
     git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
     git fetch origin
 }
 
+dir_git_prune()
+{
+    git remote | xargs --no-run-if-empty -L 1 -I {} git remote prune {}
+}
+
+dir_git_push()
+{
+    git push
+}
 
 dir_git_update()
 {
@@ -545,7 +549,6 @@ execute_command()
         echo "<<< wshandler $1: ${SOURCE_TYPE} sources ---"
     done
 }
-
 
 rosinstall_yq_merge()
 {
@@ -721,16 +724,6 @@ execute_foreach()
     "${WSH_SOURCE_TYPE}_foreach" "$@"
 }
 
-execute_prune()
-{
-    git_foreach "git remote | xargs --no-run-if-empty -L 1 -I {} git remote prune {}"
-}
-
-execute_push()
-{
-    git_foreach "git push"
-}
-
 execute_branch()
 {
     ACTION=$1
@@ -797,31 +790,56 @@ execute_init()
     fi
 }
 
-execute_local_command()
+execute_selective_command()
 {
     COMMAND_NAME="$1"
+    TARGETS=("${@:2}")
 
-    for TARGET_NAME in "${@:2}"
-    do
+    if [ -z "$2" ]
+    then
         for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
         do
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
-                | while read -r NAME REPO VERSION; \
-                do \
-                    if [ "${TARGET_NAME}" = "${NAME}" ];\
-                    then \
-                        REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"
-                        if [ -d "${REPO_DIR}/.git" ]; \
-                        then \
-                            "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
-                            exit; \
-                        else \
-                            echo "${NAME}: is not a git repository'"; \
-                            exit 40; \
-                        fi \
-                    fi; \
-                done
+            case ${COMMAND_NAME} in
+                prune|push|unshallow)
+                    TARGETS+=("$("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_names")")
+                    ;;
+                update)
+                    "${SOURCE_TYPE}_${COMMAND_NAME}"
+                    ;;
+            esac
         done
+    fi
+
+
+    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+    do
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
+            | while read -r NAME REPO VERSION; \
+            do \
+                for TARGET_NAME in "${TARGETS[@]}"; \
+                do \
+                    if [ "${TARGET_NAME}" != "${NAME}" ]; \
+                    then \
+                        continue; \
+                    fi; \
+                    REPO_DIR="${WSH_WORKSPACE_ROOT}/${NAME}/"; \
+                    if [ ! -d "${REPO_DIR}/.git" ]; \
+                    then \
+                        echo "${NAME}: is not a git repository'"; \
+                        exit 40; \
+                    fi; \
+                    echo "Performing '${COMMAND_NAME}' on '${NAME}'"; \
+                    pushd "${REPO_DIR}"; \
+                    "dir_git_${COMMAND_NAME}" "${NAME}" "${REPO}" "${VERSION}"; \
+                    popd; \
+                    if [ "${#TARGETS[@]}" -eq "1" ]; \
+                    then \
+                        return; \
+                    fi; \
+                    TARGETS=("${TARGETS[@]/${NAME}}"); \
+                    break; \
+                done \
+            done
     done
 }
 
@@ -965,26 +983,16 @@ do
             fi
             exit;;
 
-        update)
+        unshallow|update|prune|push)
             check_workspace "$1"
-            if [ -z "$2" ]
-            then
-                execute_command "$1"
-            else
-                execute_local_command "${@}"
-            fi
-            exit;;
-
-        unshallow)
-            check_workspace "$1"
-            execute_local_command "${@}"
+            execute_selective_command "${@}"
             exit;;
 
         is_source_space)
             check_workspace "is_source_space"
             exit;;
 
-        add|remove|merge|remove_by_url|foreach|prune|push|branch|commit|set_version_branch)
+        add|remove|merge|remove_by_url|foreach|branch|commit|set_version_branch)
             check_workspace "$1"
             "execute_$1" "${@:2}"
             exit;;
