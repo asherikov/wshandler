@@ -32,6 +32,9 @@ test_update:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ status
 	${WSHANDLER} -t ${TYPE} -r tests/update/ -u status
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update "staticoma.*"
+	test -d tests/update/staticoma
+	! test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	test -d tests/update/staticoma
@@ -50,6 +53,11 @@ test_update:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -l .${TYPE} status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} status
+	test -d tests/update/staticoma_commit
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean "staticoma.*"
+	! test -d tests/update/staticoma
+	! test -d tests/update/staticoma_commit
+	test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase,nolfs update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status

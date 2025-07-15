@@ -56,44 +56,65 @@ Common arguments:
   -k|--keep-going                 {false}                 # do not stop on errors
   -l|--list <FILENAME>            {.rosinstall|.repos}    # default depends on --type
 
-List commands:
+Repository list commands:
   Information:
-    [-u|--unsorted] status
-    is_source_space
+    [-u|--unsorted] status    # show workspace status
+    is_source_space           # check if a directory is a workspace
   Initialization:
-    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] clone git <LIST_REPOSITORY> [<BRANCH>]
-    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)] init [git <PACKAGE_REPOSITORY> ...]
+    Common arguments:
+      [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)]
+        default   # plain clone
+        shallow   # shallow clone
+        nolfs     # disable git LFS
+    clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
+    init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
   Modification:
-    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>
-    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>
-    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>
-    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>
-    remove <PACKAGE_NAME> ...
-    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]
-    [-p|--policy {keep}|replace] merge <LIST_FILENAME>
+    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>  # process unmanaged repositories
+      ask         # interactive mode
+      add         # automaticaly add repositories
+      show        # show unmanaged repositories
+      clean       # remove unmanaged repositories
+    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository
+    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version
+    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version
+    remove <PACKAGE_NAME> ...                                 # remove repository from a list
+    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]               # remove repository from a list
+    [-p|--policy {keep}|replace] merge <LIST_FILENAME>        # merge repository list
+      keep        # keep original entries when there is a collision
+      replace     # replace entries when there is a collision
 
-Package repository commands:
-  All packages:
-    [-j|--jobs <NUM_THREADS> {1}] [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update
-    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'
-    branch show ['<GREP_PATTERN>']
-    branch new <BRANCH_NAME>
-    branch delete <BRANCH_NAME>
-    branch switch <BRANCH_NAME>
-    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}>
-    commit '<MESSAGE>'
-  Selected packages:
-    prune [<PACKAGE_NAME> ...]
-    push [<PACKAGE_NAME> ...]
-    unshallow [<PACKAGE_NAME> ...]
-    [-j|--jobs <NUM_THREADS> {1}] clean [<PACKAGE_NAME> ...]
-    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...]
+Repository commands:
+  Selective commands (<PACKAGE_NAME> may be a pattern):
+    Common parameters:
+      [-j|--jobs <NUM_THREADS> {1}]   # use multiple jobs if possible
+    clean [<PACKAGE_NAME> ...]        # remove repository
+    prune [<PACKAGE_NAME> ...]        # git prune
+    push [<PACKAGE_NAME> ...]         # git push
+    unshallow [<PACKAGE_NAME> ...]    # git unshallow
+    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
+      default     # plain clone
+      shallow     # shallow clone
+      nolfs       # disable git LFS
+      rebase      # do git pull with rebase
+  Generic commands:
+    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'  # execute command in each repository
+  Branching commands:
+    branch show ['<GREP_PATTERN>']                    # show matching branches
+    branch new <BRANCH_NAME>                          # create new branch in modified repositories
+    branch delete <BRANCH_NAME>                       # delete branch from all repositories
+    branch switch <BRANCH_NAME>                       # change to given branch
+    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}> # merge brach
+    commit '<MESSAGE>'                                # commit to modified repositories
 
 wshandler installation commands:
-  install_test_deps
-  [-p|--policy {skip_yaml_tool}|snap|download|apt] install <BIN_PATH {~/bin}>
-  upgrade <BIN_PATH {~/bin}>
-  upgrade_appimage <BIN_PATH {~/bin}>
+  install_test_deps                                                           # install test dependeincies
+  [-p|--policy {skip_yaml_tool}|snap|download|apt] install <BIN_PATH {~/bin}> # install wshandler
+      skip_yaml_tool  # do not install yaml tool
+      snap            # install yaml tool (jq) using snap
+      download        # download yaml tool (jq)
+      apt             #  install yaml tool (gojq) using apt
+  upgrade <BIN_PATH {~/bin}>              # upgrade wshandler
+  upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage
 ```
 
 Examples
