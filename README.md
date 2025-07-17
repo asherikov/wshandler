@@ -60,6 +60,7 @@ Repository list commands:
   Information:
     [-u|--unsorted] status    # show workspace status
     is_source_space           # check if a directory is a workspace
+
   Initialization:
     Common arguments:
       [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)]
@@ -68,6 +69,7 @@ Repository list commands:
         nolfs     # disable git LFS
     clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
     init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
+
   Modification:
     [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>  # process unmanaged repositories
       ask         # interactive mode
@@ -77,6 +79,9 @@ Repository list commands:
     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository
     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version
     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version
+    set_version_to_hash                                       # set all repository versions to hash
+    [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch
+      active      # switch if the given branch is checked out
     remove <PACKAGE_NAME> ...                                 # remove repository from a list
     remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]               # remove repository from a list
     [-p|--policy {keep}|replace] merge <LIST_FILENAME>        # merge repository list
@@ -96,13 +101,15 @@ Repository commands:
       shallow     # shallow clone
       nolfs       # disable git LFS
       rebase      # do git pull with rebase
+
   Generic commands:
     [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'  # execute command in each repository
+
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches
-    branch new <BRANCH_NAME>                          # create new branch in modified repositories
+    branch new <BRANCH_NAME>                          # create a new branch in modified repositories
+    branch allnew <BRANCH_NAME>                       # create a new branch in all repositories
     branch delete <BRANCH_NAME>                       # delete branch from all repositories
-    branch switch <BRANCH_NAME>                       # change to given branch
     branch merge <BRANCH_NAME> <TARGET_BRANCH {main}> # merge brach
     commit '<MESSAGE>'                                # commit to modified repositories
 

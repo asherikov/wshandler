@@ -37,6 +37,7 @@ help()
     echo "  Information:"
     echo "    [-u|--unsorted] status    # show workspace status"
     echo "    is_source_space           # check if a directory is a workspace"
+    echo ""
     echo "  Initialization:"
     echo "    Common arguments:"
     echo "      [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)]"
@@ -45,6 +46,7 @@ help()
     echo "        nolfs     # disable git LFS"
     echo "    clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository"
     echo "    init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace"
+    echo ""
     echo "  Modification:"
     echo "    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>  # process unmanaged repositories"
     echo "      ask         # interactive mode"
@@ -54,6 +56,9 @@ help()
     echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository"
     echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version"
     echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version"
+    echo "    set_version_to_hash                                       # set all repository versions to hash"
+    echo "    [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch"
+    echo "      active      # switch if the given branch is checked out"
     echo "    remove <PACKAGE_NAME> ...                                 # remove repository from a list"
     echo "    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]               # remove repository from a list"
     echo "    [-p|--policy {keep}|replace] merge <LIST_FILENAME>        # merge repository list"
@@ -73,13 +78,15 @@ help()
     echo "      shallow     # shallow clone"
     echo "      nolfs       # disable git LFS"
     echo "      rebase      # do git pull with rebase"
+    echo ""
     echo "  Generic commands:"
     echo "    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'  # execute command in each repository"
+    echo ""
     echo "  Branching commands:"
     echo "    branch show ['<GREP_PATTERN>']                    # show matching branches"
-    echo "    branch new <BRANCH_NAME>                          # create new branch in modified repositories"
+    echo "    branch new <BRANCH_NAME>                          # create a new branch in modified repositories"
+    echo "    branch allnew <BRANCH_NAME>                       # create a new branch in all repositories"
     echo "    branch delete <BRANCH_NAME>                       # delete branch from all repositories"
-    echo "    branch switch <BRANCH_NAME>                       # change to given branch"
     echo "    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}> # merge brach"
     echo "    commit '<MESSAGE>'                                # commit to modified repositories"
     echo ""
@@ -344,6 +351,16 @@ dir_git_uncommitted()
     git status --porcelain | grep . > /dev/null
 }
 
+dir_git_get_hash()
+{
+    git rev-parse HEAD
+}
+
+dir_git_get_branch()
+{
+    git rev-parse --abbrev-ref HEAD
+}
+
 dir_git_status()
 {
     NAME="$1"
@@ -470,7 +487,7 @@ dir_git_merge()
     TARGET_BRANCH=$3
 
     cd "${WSH_WORKSPACE_ROOT:?}/${NAME}";
-    if [ "${BRANCH}" = "$(git rev-parse --abbrev-ref HEAD)" ]
+    if [ "${BRANCH}" = "$(dir_git_get_branch)" ]
     then
         if dir_git_uncommitted
         then
@@ -789,6 +806,8 @@ execute_branch()
     case ${ACTION} in
         new)
             git_foreach "((git status --porcelain | grep . > /dev/null) && git checkout -b ${BRANCH}) || true";;
+        allnew)
+            git_foreach "git checkout -b ${BRANCH}";;
         delete)
             git_foreach "(git ls-remote --exit-code --heads origin ${BRANCH} > /dev/null && git push origin --delete ${BRANCH}) || true";;
         show)
@@ -796,17 +815,6 @@ execute_branch()
         merge)
             TARGET_BRANCH=${3:-"main"}
             "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
-            ;;
-        switch)
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" \
-                | while read -r NAME; \
-                do \
-                    cd "${WSH_WORKSPACE_ROOT:?}/${NAME}"; \
-                    if [ "${BRANCH}" = "$(git rev-parse --abbrev-ref HEAD)" ]; \
-                    then \
-                        "${WSHANDLER[@]}" set_version_by_name "${NAME}" "${BRANCH}"; \
-                    fi \
-                done
             ;;
         *) help 1;;
     esac
@@ -893,7 +901,7 @@ set_version()
     case $1 in
         set_version_by_url) TYPE=REPO;;
         set_version_by_name) TYPE=NAME;;
-        *) help 1;;
+        *) TYPE=ALL;;
     esac
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
@@ -901,11 +909,35 @@ set_version()
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
             | while read -r NAME REPO VERSION; \
             do \
-                if [ "${TARGET_MATCH}" = "${!TYPE}" ];\
+                if [ "${TYPE}" = "ALL" ]; \
                 then \
-                    echo "${NAME}: changing '${VERSION}' to '${TARGET_VERSION}'"; \
+                    cd "${WSH_WORKSPACE_ROOT:?}/${NAME}"; \
+                    case $1 in \
+                        set_version_to_hash) TARGET_VERSION="$("dir_${SOURCE_TYPE}_get_hash")";; \
+                        set_version_to_branch) \
+                            case "${WSH_COMMAND_POLICY}" in \
+                                default|active)
+                                    if [ "${TARGET_MATCH}" != "$("dir_${SOURCE_TYPE}_get_branch")" ]; \
+                                    then \
+                                        continue; \
+                                    fi;; \
+                                *) exit 1;; \
+                            esac
+                            TARGET_VERSION="${TARGET_MATCH}"; \
+                            ;; \
+                    esac \
+                elif [ "${TARGET_MATCH}" != "${!TYPE}" ]; \
+                then \
+                    continue; \
+                fi; \
+                if [ "${VERSION}" != "${TARGET_VERSION}" ]; \
+                then \
                     backup; \
+                    echo "${NAME}: changing '${VERSION}' to '${TARGET_VERSION}'"; \
                     "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_add" "${SOURCE_TYPE}" "${NAME}" "${REPO}" "${TARGET_VERSION}"; \
+                fi; \
+                if [ "${TYPE}" != "ALL" ]; \
+                then \
                     exit; \
                 fi; \
             done
@@ -1034,12 +1066,12 @@ do
             check_workspace "is_source_space"
             exit;;
 
-        add|remove|merge|remove_by_url|foreach|branch|commit|set_version_branch)
+        add|remove|merge|remove_by_url|foreach|branch|commit)
             check_workspace "$1"
             "execute_$1" "${@:2}"
             exit;;
 
-        set_version_by_url|set_version_by_name)
+        set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch)
             check_workspace "$1"
             set_version "${@}"
             exit;;
