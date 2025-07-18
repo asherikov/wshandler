@@ -103,7 +103,7 @@ Repository commands:
       rebase      # do git pull with rebase
 
   Generic commands:
-    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'  # execute command in each repository
+    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
 
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches
@@ -119,7 +119,7 @@ wshandler installation commands:
       skip_yaml_tool  # do not install yaml tool
       snap            # install yaml tool (jq) using snap
       download        # download yaml tool (jq)
-      apt             #  install yaml tool (gojq) using apt
+      apt             # install yaml tool (gojq) using apt
   upgrade <BIN_PATH {~/bin}>              # upgrade wshandler
   upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage
 ```

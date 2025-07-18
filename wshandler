@@ -80,7 +80,7 @@ help()
     echo "      rebase      # do git pull with rebase"
     echo ""
     echo "  Generic commands:"
-    echo "    [-j|--jobs <NUM_THREADS> {1}] [-s|-source {git}] foreach '<COMMAND>'  # execute command in each repository"
+    echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository"
     echo ""
     echo "  Branching commands:"
     echo "    branch show ['<GREP_PATTERN>']                    # show matching branches"
@@ -96,99 +96,13 @@ help()
     echo "      skip_yaml_tool  # do not install yaml tool"
     echo "      snap            # install yaml tool (jq) using snap"
     echo "      download        # download yaml tool (jq)"
-    echo "      apt             #  install yaml tool (gojq) using apt"
+    echo "      apt             # install yaml tool (gojq) using apt"
     echo "  upgrade <BIN_PATH {~/bin}>              # upgrade wshandler"
     echo "  upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage"
 
     exit "${EXIT_CODE}"
 }
 
-
-backup()
-{
-    mkdir -p "${WSH_CACHE_DIR}"
-    cp "${WSH_REPOLIST}" "${WSH_CACHE_DIR}/repolist.back"
-}
-
-
-rosinstall_yq_git_repo_triplets()
-{
-    "${WSH_YAML_CMD[@]}" '.[].git | (.local-name + " " + .uri + " " + ((select(has("version") and .version != null) // {"version": "-"}) | .version))' < "${WSH_REPOLIST}"
-}
-
-rosinstall_gojq_git_repo_triplets()
-{
-    "${WSH_YAML_CMD[@]}" --raw-output '.[].git | "\(."local-name") \(.uri) \(.version // "-")"' < "${WSH_REPOLIST}"
-}
-
-repos_yq_git_repo_triplets()
-{
-    "${WSH_YAML_CMD[@]}" '.repositories.* | select(. | has("type") and .type == "git") | (key + " " + .url + " " + ((select(has("version") and .version != null) // {"version": "-"}) | .version))' < "${WSH_REPOLIST}"
-}
-
-repos_gojq_git_repo_triplets()
-{
-    # shellcheck disable=SC2016
-    "${WSH_YAML_CMD[@]}" --raw-output '.repositories | keys[] as $k | select(.[$k].type == "git") | "\($k) \(.[$k].url) \(.[$k].version // "-")"' < "${WSH_REPOLIST}"
-}
-
-rosinstall_yq_git_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" '.[].git | (.local-name)' < "${WSH_REPOLIST}"
-}
-
-rosinstall_gojq_git_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" --raw-output '.[].git | "\(."local-name")"' < "${WSH_REPOLIST}"
-}
-
-repos_yq_git_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" '.repositories.* | select(. | has("type") and .type == "git") | key' < "${WSH_REPOLIST}"
-}
-
-repos_gojq_git_repo_names()
-{
-    # shellcheck disable=SC2016
-    "${WSH_YAML_CMD[@]}" --raw-output '.repositories | keys[] as $k | select(.[$k].type == "git") | "\($k)"' < "${WSH_REPOLIST}"
-}
-
-
-
-git_status()
-{
-    DATA=$(
-        echo "name|version|actual version|HM|repository";
-        echo "----|-------|--------------|--|----------";
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_triplets" | while read -r -a TRIPLET; do dir_git_status "${TRIPLET[@]}"; done | "${WSH_SORT_COMMAND}"
-    )
-
-    FORMAT_STRING=""
-    for i in {1..4};
-    do
-        MAX_LEN=$(cut -f "$i" -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
-        if [ "$i" != "1" ]
-        then
-            FORMAT_STRING+=" "
-        fi
-        FORMAT_STRING+="%-${MAX_LEN}.${MAX_LEN}s"
-    done
-
-    echo "Flags: H - version hash mismatch, M - uncommited changes"
-    IFS=$'\n' readarray -t ROWS <<< "${DATA}"
-    for ROW in "${ROWS[@]}"
-    do
-        IFS='|' read -ra COLS <<< "${ROW}"
-        # use ${COLUMNS} to crop?
-        # shellcheck disable=SC2059
-        printf "${FORMAT_STRING} %s\n" "${COLS[@]}"
-    done
-
-    echo
-
-    WSH_COMMAND_POLICY=show
-    git_scrape "${WSH_WORKSPACE_ROOT}"
-}
 
 update_root()
 {
@@ -237,7 +151,7 @@ git_scrape()
         FIND_ARGS+=(-mindepth 2)
     fi
     GIT_DIRS=$(cd "${SCRAPE_ROOT}" && find ./ "${FIND_ARGS[@]}" -type d -name ".git" | sed -e 's|^./||' -e "s|/.git$||" | sort)
-    UNKNOWN_GIT_DIRS=$(comm -2 -3 <(echo "${GIT_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" | sort))
+    UNKNOWN_GIT_DIRS=$(comm -2 -3 <(echo "${GIT_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" git < "${WSH_REPOLIST}" | sort))
 
     for GIT_DIR in ${UNKNOWN_GIT_DIRS}
     do
@@ -259,34 +173,30 @@ git_scrape()
 
         echo "Found unmanaged git repository:  ${GIT_DIR}  ${GIT_REPO}  ${GIT_VERSION}"
 
-        while true
-        do
-            case "${WSH_COMMAND_POLICY}" in
-                ask|default)
+        case "${WSH_COMMAND_POLICY}" in
+            ask|default)
+                while [ -z "${ACTION}" ]
+                do
                     read -r -p "Add (y or a (default)), do nothing (n), remove (c): " yn
-                    yn=${yn:-"Y"};;
-                show)
-                    yn='N';;
-                add)
-                    yn='Y';;
-                clean)
-                    yn='C';;
-                *)
-                    help 20;;
-            esac
-            case $yn in
-                [YyAa])
-                    execute_add git "${GIT_DIR}" "${GIT_REPO}" "${GIT_VERSION}"
-                    break;;
-                [Nn])
-                    break;;
-                [Cc])
-                    rm -rf "${REPO_DIR}";
-                    break;;
-                *)
-                    echo "Please answer y or n for yes or no.";;
-            esac
-        done
+                    yn=${yn:-"Y"}
+                    case $yn in
+                        [YyAa]) ACTION=add;;
+                        [Nn])   ACTION=show;;
+                        [Cc])   ACTION=clean;;
+                        *)
+                            echo "Please enter one of y/n/c.";;
+                    esac
+                done;;
+            show|add|clean)
+                ACTION="${WSH_COMMAND_POLICY}";;
+            *)
+                help 20;;
+        esac
+
+        case ${ACTION} in
+            add)    execute_add git "${GIT_DIR}" "${GIT_REPO}" "${GIT_VERSION}";;
+            clean)  rm -rf "${REPO_DIR}";;
+        esac
     done
 }
 
@@ -335,17 +245,6 @@ git_clone()
 }
 
 
-dir_run()
-{
-    echo ">>> Processing '$1'"
-    if [ -d "${WSH_WORKSPACE_ROOT}/$1/" ]
-    then
-        cd "${WSH_WORKSPACE_ROOT}/$1/" && sh -c "$2"
-    else
-        echo "Missing directory: ${WSH_WORKSPACE_ROOT}/$1/"
-    fi
-}
-
 dir_git_uncommitted()
 {
     git status --porcelain | grep . > /dev/null
@@ -373,9 +272,9 @@ dir_git_status()
     if [ -d "${GIT_DIR}/.git" ]
     then
         cd "${GIT_DIR}"
-        GIT_VERSION_HASH=$(git rev-parse --short "${GIT_VERSION}" 2> /dev/null || echo -n "-")
+        GIT_VERSION_HASH=$(git rev-parse "${GIT_VERSION}" 2> /dev/null || echo -n "-")
         GIT_ACTUAL_VERSION=$(git describe --dirty --broken --all --long --always | tr -d '\n')
-        GIT_ACTUAL_HASH=$(git rev-parse --short HEAD || echo -n "-")
+        GIT_ACTUAL_HASH=$(dir_git_get_hash || echo -n "-")
     fi
 
     FLAGS=""
@@ -515,6 +414,7 @@ dir_git_assert()
     fi
 }
 
+
 dir_git_clean()
 {
     REPO_DIR="${WSH_WORKSPACE_ROOT:?}/$1"
@@ -524,6 +424,49 @@ dir_git_clean()
     else
         rm -rf "${REPO_DIR}";
     fi
+}
+
+
+status()
+{
+    SOURCE_TYPE=$1
+
+    DATA=$(
+        echo "name|version|actual version|HM|repository";
+        echo "----|-------|--------------|--|----------";
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" | while read -r -a TRIPLET; do "dir_${SOURCE_TYPE}_status" "${TRIPLET[@]}"; done | "${WSH_SORT_COMMAND}"
+    )
+
+    FORMAT_STRING=""
+    for i in {1..4};
+    do
+        MAX_LEN=$(cut -f "$i" -d '|' <<< "${DATA}" | wc -L | grep -o "[0-9]*")
+        if [ "$i" != "1" ]
+        then
+            FORMAT_STRING+=" "
+        fi
+        FORMAT_STRING+="%-${MAX_LEN}.${MAX_LEN}s"
+    done
+
+    echo "Flags: H - version hash mismatch, M - uncommited changes"
+    IFS=$'\n' readarray -t ROWS <<< "${DATA}"
+    for ROW in "${ROWS[@]}"
+    do
+        IFS='|' read -ra COLS <<< "${ROW}"
+        # use ${COLUMNS} to crop?
+        # shellcheck disable=SC2059
+        printf "${FORMAT_STRING} %s\n" "${COLS[@]}"
+    done
+
+    echo
+
+    WSH_COMMAND_POLICY=show
+    scrape "${SOURCE_TYPE}" "${WSH_WORKSPACE_ROOT}"
+}
+
+scrape()
+{
+    "$1_scrape" "${@:2}"
 }
 
 check_workspace()
@@ -594,6 +537,7 @@ check_workspace()
     test -d "${WSH_WORKSPACE_ROOT}" || (echo "'${WSH_WORKSPACE_ROOT}' does not exist" && false)
 
     WSH_CACHE_DIR=${WSH_CACHE_DIR:-"${WSH_WORKSPACE_ROOT}/.wshandler"}
+    WSH_BACKUP_FILE="${WSH_CACHE_DIR}/repolist.back"
 
     if [ ! -f "${WSH_REPOLIST}" ]
     then
@@ -614,82 +558,112 @@ check_workspace()
 }
 
 
+backup()
+{
+    mkdir -p "${WSH_CACHE_DIR}"
+    cp "${WSH_REPOLIST}" "${WSH_BACKUP_FILE}"
+}
+
+
 execute_command()
 {
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
         echo ">>> wshandler $1: ${SOURCE_TYPE} sources ---"
-        "${SOURCE_TYPE}_$1" "${@:2}"
+        "$1" "${SOURCE_TYPE}" "${@:2}"
         echo "<<< wshandler $1: ${SOURCE_TYPE} sources ---"
     done
 }
 
+
+rosinstall_yq_repo_triplets()
+{
+    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name + \" \" + .uri + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))" < "${WSH_REPOLIST}"
+}
+
+rosinstall_gojq_repo_triplets()
+{
+    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\") \(.uri) \(.version // \"-\")\"" < "${WSH_REPOLIST}"
+}
+
+repos_yq_repo_triplets()
+{
+    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))" < "${WSH_REPOLIST}"
+}
+
+repos_gojq_repo_triplets()
+{
+    # shellcheck disable=SC2016
+    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\"" < "${WSH_REPOLIST}"
+}
+
+
+rosinstall_yq_repo_names()
+{
+    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name)"
+}
+
+rosinstall_gojq_repo_names()
+{
+    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\")\""
+}
+
+repos_yq_repo_names()
+{
+    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | key"
+}
+
+repos_gojq_repo_names()
+{
+    # shellcheck disable=SC2016
+    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k)\""
+}
+
+
 rosinstall_yq_merge()
 {
-    case "${WSH_COMMAND_POLICY}" in
-        keep|default)
-            INPUT_FILE=$1;;
-        replace)
-            cp "$1" "${WSH_REPOLIST}"
-            INPUT_FILE="${WSH_CACHE_DIR}/repolist.back";;
-        *)
-            help 11;;
-    esac
-
-    REMOVE_LIST=$("${WSH_YAML_CMD[@]}" '.[].* | (".*.local-name == \"" +.local-name + "\" or ")' < "${WSH_REPOLIST}" | tr -d '\n' | sed -e 's/or $//')
+    REMOVE_LIST=$("${WSH_YAML_CMD[@]}" '.[].* | (".*.local-name == \"" +.local-name + "\" or ")' < "$1" | tr -d '\n' | sed -e 's/or $//')
     # shellcheck disable=SC2094
-    "${WSH_YAML_CMD[@]}" "del(.[] | select(${REMOVE_LIST}))" < "${INPUT_FILE}" | "${WSH_YAML_CMD[@]}" 'del(. | select(length==0))' >> "${WSH_REPOLIST}"
+    { cat "$1"; "${WSH_YAML_CMD[@]}" "del(.[] | select(${REMOVE_LIST}))" < "$2" | "${WSH_YAML_CMD[@]}" 'del(. | select(length==0))'; }
 }
 
 rosinstall_gojq_merge()
 {
-    case "${WSH_COMMAND_POLICY}" in
-        keep|default)
-            "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[0] + .[1] | unique_by(.[]."local-name")' "${WSH_CACHE_DIR}/repolist.back" "$1" > "${WSH_REPOLIST}";;
-        replace)
-            "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[1] + .[0] | unique_by(.[]."local-name")' "${WSH_CACHE_DIR}/repolist.back" "$1" > "${WSH_REPOLIST}";;
-        *)
-            help 12;;
-    esac
+    "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[0] + .[1] | unique_by(.[]."local-name")' "$1" "$2"
 }
 
 repos_yq_merge()
 {
-    case "${WSH_COMMAND_POLICY}" in
-        keep|default)
-            # shellcheck disable=SC2016
-            "${WSH_YAML_CMD[@]}" eval-all '. as $item ireduce ({}; . * $item)' <(cat "$1") <(cat "${WSH_CACHE_DIR}/repolist.back") > "${WSH_REPOLIST}";;
-        replace)
-            # shellcheck disable=SC2016
-            "${WSH_YAML_CMD[@]}" eval-all '. as $item ireduce ({}; . * $item)' <(cat "${WSH_CACHE_DIR}/repolist.back") <(cat "$1") > "${WSH_REPOLIST}";;
-        *)
-            help 13;;
-    esac
+    # shellcheck disable=SC2016
+    "${WSH_YAML_CMD[@]}" eval-all '. as $item ireduce ({}; . * $item)' <(cat "$2") <(cat "$1")
 }
 
 repos_gojq_merge()
 {
-    case "${WSH_COMMAND_POLICY}" in
-        keep|default)
-            "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[0] * .[1]' "${WSH_CACHE_DIR}/repolist.back" "$1" > "${WSH_REPOLIST}";;
-        replace)
-            "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[1] * .[0]' "${WSH_CACHE_DIR}/repolist.back" "$1" > "${WSH_REPOLIST}";;
-        *)
-            help 14;;
-    esac
+    "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[0] * .[1]' "$1" "$2"
 }
+
 
 execute_merge()
 {
-    INPUT_FILE=$1
-    if [ -s "${INPUT_FILE}" ] && [ ! "${WSH_REPOLIST}" -ef "${INPUT_FILE}" ]
+    SECOND_FILE=$1
+    if [ -s "${SECOND_FILE}" ] && [ ! "${WSH_REPOLIST}" -ef "${SECOND_FILE}" ]
     then
         if [ -s "${WSH_REPOLIST}" ]
         then
+            case "${WSH_COMMAND_POLICY}" in
+                keep|default)
+                    FIRST_FILE="${WSH_BACKUP_FILE}";;
+                replace)
+                    FIRST_FILE="${SECOND_FILE}"
+                    SECOND_FILE="${WSH_BACKUP_FILE}";;
+                *)
+                    help 11;;
+            esac
             backup
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${INPUT_FILE}"
+            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${FIRST_FILE}" "${SECOND_FILE}" > "${WSH_REPOLIST}"
         else
-            cp "${INPUT_FILE}" "${WSH_REPOLIST}"
+            cp "${SECOND_FILE}" "${WSH_REPOLIST}"
         fi
     else
         help 10;
@@ -699,103 +673,92 @@ execute_merge()
 
 rosinstall_yq_remove()
 {
-    "${WSH_YAML_CMD[@]}" "del(.[] | select(.*.local-name == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" "del(.[] | select(.*.local-name == \"$1\"))"
 }
 
 rosinstall_gojq_remove()
 {
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].\"local-name\" == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].\"local-name\" == \"$1\"))"
 }
 
 repos_yq_remove()
 {
-    "${WSH_YAML_CMD[@]}" "del(.repositories.$1)" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" "del(.repositories.$1)"
 }
 
 repos_gojq_remove()
 {
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.\"$1\")" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
-}
-
-execute_remove()
-{
-    backup
-    for PKG_NAME in "$@"
-    do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "${PKG_NAME}"
-    done
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.\"$1\")"
 }
 
 
 rosinstall_yq_remove_by_url()
 {
-    "${WSH_YAML_CMD[@]}" "del(.[] | select(.*.uri == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" "del(.[] | select(.*.uri == \"$1\"))"
 }
 
 rosinstall_gojq_remove_by_url()
 {
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].uri == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].uri == \"$1\"))"
 }
 
 repos_yq_remove_by_url()
 {
-    "${WSH_YAML_CMD[@]}" "del(.repositories.* | select(.url == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" "del(.repositories.* | select(.url == \"$1\"))"
 }
 
 repos_gojq_remove_by_url()
 {
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.[] | select(.url == \"$1\"))" < "${WSH_CACHE_DIR}/repolist.back" > "${WSH_REPOLIST}"
-}
-
-execute_remove_by_url()
-{
-    backup
-    for PKG_URL in "$@"
-    do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove_by_url" "${PKG_URL}"
-    done
+    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.[] | select(.url == \"$1\"))"
 }
 
 
-rosinstall_yq_git_add()
+rosinstall_yq_add()
 {
-    ENTRY="[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]"
-    "${WSH_YAML_CMD[@]}" "del(.[] | select(.*.local-name == \"$2\"))" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" ". + ${ENTRY}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" ". + $1"
 }
 
-rosinstall_gojq_git_add()
+rosinstall_gojq_add()
 {
-    ENTRY="[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]"
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.[] | select(.[].\"local-name\" == \"$2\"))" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // [] | . + ${ENTRY}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // [] | . + $1"
 }
 
-repos_yq_git_add()
+repos_yq_add()
 {
-    ENTRY="{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}"
-    "${WSH_YAML_CMD[@]}" "del(.repositories.$2)" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" ". * {\"repositories\": ${ENTRY}}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" ". * {\"repositories\": $1}"
 }
 
-repos_gojq_git_add()
+repos_gojq_add()
 {
-    ENTRY="{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}"
-    "${WSH_YAML_CMD[@]}" --yaml-output "del(.repositories.\"$2\")" < "${WSH_CACHE_DIR}/repolist.back" | "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // {} | . * {\"repositories\": ${ENTRY}}" > "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // {} | . * {\"repositories\": $1}"
 }
 
 execute_add()
 {
+    case ${WSH_WORKSPACE_TYPE} in
+        rosinstall) ENTRY="[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]";;
+        repos)      ENTRY="{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}";;
+    esac
+
     backup
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_$1_add" "$@"
+    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "$2" < "${WSH_BACKUP_FILE}" | "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_add" "${ENTRY}" > "${WSH_REPOLIST}"
 }
 
 
-git_foreach()
+dir_run()
 {
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${WSH_SOURCE_TYPE}_repo_names" | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$1"
+    echo ">>> Processing '$1'"
+    if [ -d "${WSH_WORKSPACE_ROOT}/$1/" ]
+    then
+        cd "${WSH_WORKSPACE_ROOT}/$1/" && sh -c "$2"
+    else
+        echo "Missing directory: ${WSH_WORKSPACE_ROOT}/$1/"
+    fi
 }
 
 execute_foreach()
 {
-    "${WSH_SOURCE_TYPE}_foreach" "$@"
+    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" "$1" < "${WSH_REPOLIST}" | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$2"
 }
 
 execute_branch()
@@ -805,16 +768,16 @@ execute_branch()
 
     case ${ACTION} in
         new)
-            git_foreach "((git status --porcelain | grep . > /dev/null) && git checkout -b ${BRANCH}) || true";;
+            execute_foreach git "((git status --porcelain | grep . > /dev/null) && git checkout -b ${BRANCH}) || true";;
         allnew)
-            git_foreach "git checkout -b ${BRANCH}";;
+            execute_foreach git "git checkout -b ${BRANCH}";;
         delete)
-            git_foreach "(git ls-remote --exit-code --heads origin ${BRANCH} > /dev/null && git push origin --delete ${BRANCH}) || true";;
+            execute_foreach git "(git ls-remote --exit-code --heads origin ${BRANCH} > /dev/null && git push origin --delete ${BRANCH}) || true";;
         show)
-            git_foreach "git branch -a | grep '${BRANCH}'";;
+            execute_foreach git "git branch -a | grep '${BRANCH}'";;
         merge)
             TARGET_BRANCH=${3:-"main"}
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_git_repo_names" | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
+            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" git < "${WSH_REPOLIST}" | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
             ;;
         *) help 1;;
     esac
@@ -822,7 +785,7 @@ execute_branch()
 
 execute_commit()
 {
-    git_foreach "((git status --porcelain | grep . > /dev/null) && git commit -a -m '${1}') || true"
+    execute_foreach git "((git status --porcelain | grep . > /dev/null) && git commit -a -m '${1}') || true"
 }
 
 execute_clone()
@@ -861,9 +824,9 @@ filter_triplets_by_name()
 
     if [ -z "$2" ]
     then
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets"
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}"
     else
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" \
             | while read -r NAME REPO VERSION;
             do
                 for NAME_PATTERN in "${@:2}";
@@ -906,7 +869,7 @@ set_version()
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_repo_triplets" \
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" \
             | while read -r NAME REPO VERSION; \
             do \
                 if [ "${TYPE}" = "ALL" ]; \
@@ -932,9 +895,8 @@ set_version()
                 fi; \
                 if [ "${VERSION}" != "${TARGET_VERSION}" ]; \
                 then \
-                    backup; \
                     echo "${NAME}: changing '${VERSION}' to '${TARGET_VERSION}'"; \
-                    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_${SOURCE_TYPE}_add" "${SOURCE_TYPE}" "${NAME}" "${REPO}" "${TARGET_VERSION}"; \
+                    execute_add "${SOURCE_TYPE}" "${NAME}" "${REPO}" "${TARGET_VERSION}"; \
                 fi; \
                 if [ "${TYPE}" != "ALL" ]; \
                 then \
@@ -973,9 +935,9 @@ WSH_INDENT=4
 WSH_XARGS=(xargs --no-run-if-empty -L 1 -P "${WSH_JOBS}")
 WSH_KEEP_GOING=""
 WSH_YAML_BINARY=
-WSH_SOURCE_TYPE="git"
 WSH_REPOLIST=
 WSH_SORT_COMMAND="sort"
+WSH_BACKUP_FILE=
 
 while [[ $# -gt 0 ]]
 do
@@ -1026,10 +988,6 @@ do
             WSH_KEEP_GOING="-k"
             shift;;
 
-        -s|--source)
-            WSH_SOURCE_TYPE=$2
-            shift; shift;;
-
         -l|--list)
             WSH_REPOLIST=$2
             shift; shift;;
@@ -1042,12 +1000,7 @@ do
             "execute_$1" "${@:2}"
             exit;;
 
-        status)
-            check_workspace "$1"
-            execute_command "$1"
-            exit;;
-
-        scrape)
+        status|scrape)
             check_workspace "$1"
             if [ -z "$2" ]
             then
@@ -1066,9 +1019,18 @@ do
             check_workspace "is_source_space"
             exit;;
 
-        add|remove|merge|remove_by_url|foreach|branch|commit)
+        add|merge|foreach|branch|commit)
             check_workspace "$1"
             "execute_$1" "${@:2}"
+            exit;;
+
+        remove|remove_by_url)
+            check_workspace "$1"
+            for PKG_ID in "$@"
+            do
+                backup
+                "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_$1" "${PKG_ID}" < "${WSH_BACKUP_FILE}" > "${WSH_REPOLIST}"
+            done
             exit;;
 
         set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch)
