@@ -47,14 +47,15 @@ Notation:
   (VALID OPTIONS IN A LIST)
 
 Common arguments:
-  -y|--yaml_tool auto|gojq|yq     {auto}                  # use gojq or yq, auto prefers gojq
-  -Y|--yaml_binary <BINARY_PATH>  {yq|gojq}               # override yaml tool (yq/gojq) path
-  -r|--root <WORKSPACE_ROOT>      {./}                    # parent of --list if it is a path
-  -c|--cache <CACHE_DIR>          {<WORKSPACE_ROOT>}      # temporary files created here
-  -t|--type rosinstall|repos      {repos}                 # repository list format
-  -i|--indent 1|2|3...            {4}                     # default indentation in yaml repository list
-  -k|--keep-going                 {false}                 # do not stop on errors
-  -l|--list <FILENAME>            {.rosinstall|.repos}    # default depends on --type
+  -y|--yaml_tool auto|gojq|yq    {auto}               # use gojq or yq, auto prefers gojq
+  -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # override yaml tool (yq/gojq) path
+  -r|--root <WORKSPACE_ROOT>     {./}                 # parent of --list if it is a path
+  -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # temporary files created here
+  -t|--type rosinstall|repos     {repos}              # repository list format
+  -i|--indent 1|2|3...           {4}                  # default indentation in yaml repository list
+  -k|--keep-going                {false}              # do not stop on errors
+  -l|--list <FILENAME>           {.rosinstall|.repos} # default depends on --type,
+                                                      # can be specified multiple times
 
 Repository list commands:
   Information:

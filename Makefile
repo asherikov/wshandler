@@ -20,6 +20,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_set_version
 	@${MAKE} wrap_test TEST=test_branch
 	@${MAKE} wrap_test TEST=test_init
+	@${MAKE} wrap_test TEST=test_multilist
 
 wrap_test:
 	@echo ""
@@ -139,6 +140,11 @@ test_branch:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	! grep as_new tests/update/.${TYPE} > /dev/null
 	mv tests/update/.${TYPE}.test_branch tests/update/.${TYPE}
+
+test_multilist:
+	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ status
+	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
+	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ update
 
 test_root_git:
 	rm -Rf tests/root_git
