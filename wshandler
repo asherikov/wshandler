@@ -434,7 +434,7 @@ status()
     DATA=$(
         echo "name|version|actual version|HM|repository";
         echo "----|-------|--------------|--|----------";
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" | while read -r -a TRIPLET; do "dir_${SOURCE_TYPE}_status" "${TRIPLET[@]}"; done | "${WSH_SORT_COMMAND}"
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" | while read -r -a tuple; do "dir_${SOURCE_TYPE}_status" "${tuple[@]}"; done | "${WSH_SORT_COMMAND}"
     )
 
     FORMAT_STRING=""
@@ -576,25 +576,25 @@ execute_command()
 }
 
 
-rosinstall_yq_repo_triplets()
+rosinstall_yq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name + \" \" + .uri + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))" < "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name + \" \" + .uri + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
 }
 
-rosinstall_gojq_repo_triplets()
+rosinstall_gojq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\") \(.uri) \(.version // \"-\")\"" < "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\") \(.uri) \(.version // \"-\")\""
 }
 
-repos_yq_repo_triplets()
+repos_yq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))" < "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
 }
 
-repos_gojq_repo_triplets()
+repos_gojq_repo_tuples()
 {
     # shellcheck disable=SC2016
-    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\"" < "${WSH_REPOLIST}"
+    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\""
 }
 
 
@@ -733,15 +733,18 @@ repos_gojq_add()
     "${WSH_YAML_CMD[@]}" --null-input --yaml-output "input? // {} | . * {\"repositories\": $1}"
 }
 
-execute_add()
+tuple_to_entry()
 {
     case ${WSH_WORKSPACE_TYPE} in
-        rosinstall) ENTRY="[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]";;
-        repos)      ENTRY="{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}";;
+        rosinstall) echo "[{\"$1\": {\"local-name\": \"$2\", \"uri\": \"$3\", \"version\": \"$4\"}}]";;
+        repos)      echo "{\"$2\": {\"type\": \"$1\", \"url\": \"$3\", \"version\": \"$4\"}}";;
     esac
+}
 
+execute_add()
+{
     backup
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "$2" < "${WSH_BACKUP_FILE}" | "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_add" "${ENTRY}" > "${WSH_REPOLIST}"
+    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_remove" "$2" < "${WSH_BACKUP_FILE}" | "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_add" "$(tuple_to_entry "$@")" > "${WSH_REPOLIST}"
 }
 
 
@@ -818,24 +821,24 @@ execute_init()
     fi
 }
 
-filter_triplets_by_name()
+filter_tuples_by_name()
 {
     SOURCE_TYPE=$1
 
     if [ -z "$2" ]
     then
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}"
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}"
     else
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" \
-            | while read -r NAME REPO VERSION;
-            do
-                for NAME_PATTERN in "${@:2}";
-                do
-                    if [[ "${NAME}" =~ ^${NAME_PATTERN}$ ]];
-                    then
-                        echo "${NAME}" "${REPO}" "${VERSION}"
-                    fi;
-                done
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" \
+            | while read -r NAME REPO VERSION; \
+            do \
+                for NAME_PATTERN in "${@:2}"; \
+                do \
+                    if [[ "${NAME}" =~ ^${NAME_PATTERN}$ ]]; \
+                    then \
+                        echo "${NAME}" "${REPO}" "${VERSION}"; \
+                    fi; \
+                done \
             done
     fi
 }
@@ -851,7 +854,7 @@ execute_selective_command()
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
-        filter_triplets_by_name "${SOURCE_TYPE}" "${@:2}" \
+        filter_tuples_by_name "${SOURCE_TYPE}" "${@:2}" \
             | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}_${COMMAND_NAME}"
     done
 }
@@ -869,7 +872,7 @@ set_version()
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_triplets" "${SOURCE_TYPE}" \
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" \
             | while read -r NAME REPO VERSION; \
             do \
                 if [ "${TYPE}" = "ALL" ]; \
