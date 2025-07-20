@@ -157,7 +157,7 @@ git_scrape()
         FIND_ARGS+=(-mindepth 2)
     fi
     GIT_DIRS=$(cd "${SCRAPE_ROOT}" && find ./ "${FIND_ARGS[@]}" -type d -name ".git" | sed -e 's|^./||' -e "s|/.git$||" | sort)
-    UNKNOWN_GIT_DIRS=$(comm -2 -3 <(echo "${GIT_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" git < "${WSH_REPOLIST}" | sort))
+    UNKNOWN_GIT_DIRS=$(comm -2 -3 <(echo "${GIT_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" git < "${WSH_REPOLIST}" | cut -f 1 -d ' ' | sort))
 
     for GIT_DIR in ${UNKNOWN_GIT_DIRS}
     do
@@ -663,28 +663,6 @@ repos_gojq_repo_tuples()
 }
 
 
-rosinstall_yq_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name)"
-}
-
-rosinstall_gojq_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\")\""
-}
-
-repos_yq_repo_names()
-{
-    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | key"
-}
-
-repos_gojq_repo_names()
-{
-    # shellcheck disable=SC2016
-    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k)\""
-}
-
-
 rosinstall_yq_merge()
 {
     REMOVE_LIST=$("${WSH_YAML_CMD[@]}" '.[].* | (".*.local-name == \"" +.local-name + "\" or ")' < "$1" | tr -d '\n' | sed -e 's/or $//')
@@ -826,7 +804,7 @@ dir_run()
 
 execute_foreach()
 {
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" "$1" < "${WSH_REPOLIST}" | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$2"
+    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$1" < "${WSH_REPOLIST}" | cut -f 1 -d ' ' | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$2"
 }
 
 execute_branch()
@@ -845,7 +823,7 @@ execute_branch()
             execute_foreach git "git branch -a | grep '${BRANCH}'";;
         merge)
             TARGET_BRANCH=${3:-"main"}
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_names" git < "${WSH_REPOLIST}" | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
+            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" git < "${WSH_REPOLIST}" | cut -f 1 -d ' ' | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
             ;;
         *) help 1;;
     esac
@@ -890,14 +868,14 @@ filter_tuples_by_name()
 {
     SOURCE_TYPE=$1
 
-    if [ -z "$2" ]
+    if [ ${#WSH_NAME_PATTERNS[@]} -eq 0 ]
     then
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}"
     else
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" \
             | while read -r NAME REPO VERSION; \
             do \
-                for NAME_PATTERN in "${@:2}"; \
+                for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]}"; \
                 do \
                     if [[ "${NAME}" =~ ^${NAME_PATTERN}$ ]]; \
                     then \
@@ -917,9 +895,12 @@ execute_selective_command()
         update_root
     fi
 
+    WSH_NAME_PATTERNS=("${@:2}")
+    export WSH_NAME_PATTERNS
+
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
-        filter_tuples_by_name "${SOURCE_TYPE}" "${@:2}" \
+        filter_tuples_by_name "${SOURCE_TYPE}" \
             | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}_${COMMAND_NAME}"
     done
 }
@@ -1021,49 +1002,18 @@ do
                 exit 50
             fi;;
 
-        -y|--yaml_tool)
-            WSH_YAML_TOOL="$2"
-            shift; shift;;
+        -y|--yaml_tool)     WSH_YAML_TOOL="$2";     shift; shift;;
+        -Y|--yaml_binary)   WSH_YAML_BINARY=$2;     shift; shift;;
+        -r|--root)          WSH_WORKSPACE_ROOT=$2;  shift; shift;;
+        -c|--cache)         WSH_CACHE_DIR=$2 shift; shift;;
+        -t|--type)          WSH_WORKSPACE_TYPE=$2;  shift; shift;;
+        -j|--jobs)          WSH_JOBS=$2 shift;      shift;;
+        -i|--indent)        WSH_INDENT=$2 shift;    shift;;
+        -p|--policy)        WSH_COMMAND_POLICY=$2;  shift; shift;;
 
-        -Y|--yaml_binary)
-            WSH_YAML_BINARY=$2
-            shift; shift;;
-
-        -r|--root)
-            WSH_WORKSPACE_ROOT=$2
-            shift; shift;;
-
-        -c|--cache)
-            WSH_CACHE_DIR=$2
-            shift; shift;;
-
-        -t|--type)
-            WSH_WORKSPACE_TYPE=$2
-            shift; shift;;
-
-        -j|--jobs)
-            WSH_JOBS=$2
-            shift; shift;;
-
-        -i|--indent)
-            WSH_INDENT=$2
-            shift; shift;;
-
-        -p|--policy)
-            WSH_COMMAND_POLICY=$2
-            shift; shift;;
-
-        -k|--keep-going)
-            WSH_KEEP_GOING="-k"
-            shift;;
-
-        -l|--list)
-            WSH_REPOLISTS+=("$2")
-            shift; shift;;
-
-        -u|--unsorted)
-            WSH_SORT_COMMAND="cat"
-            shift;;
+        -k|--keep-going)    WSH_KEEP_GOING="-k";    shift;;
+        -l|--list)          WSH_REPOLISTS+=("$2");  shift; shift;;
+        -u|--unsorted)      WSH_SORT_COMMAND="cat"; shift;;
 
         clone|init)
             "execute_$1" "${@:2}"
