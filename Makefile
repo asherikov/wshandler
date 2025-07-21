@@ -21,6 +21,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_branch
 	@${MAKE} wrap_test TEST=test_init
 	@${MAKE} wrap_test TEST=test_multilist
+	@${MAKE} wrap_test TEST=test_tags
 
 wrap_test:
 	@echo ""
@@ -145,6 +146,20 @@ test_multilist:
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ update
+
+test_tags:
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 status | grep catkin
+	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 status | grep qpmad
+	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag status | grep qpmad
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag2 status | grep staticoma
+	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag2 status | grep qpmad
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag3 status | grep staticoma
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag3 status | grep qpmad
+	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag3 status | grep catkin
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 -T tag2 status | grep catkin
+	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 -T tag2 status | grep staticoma
+	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 -T tag2 status | grep qpmad
+
 
 test_root_git:
 	rm -Rf tests/root_git

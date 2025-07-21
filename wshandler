@@ -38,6 +38,8 @@ help()
     wsh_echo "  -k|--keep-going                {false}              # do not stop on errors"
     wsh_echo "  -l|--list <FILENAME>           {.rosinstall|.repos} # default depends on --type,"
     wsh_echo "                                                      # can be specified multiple times"
+    wsh_echo "  -T|--tag <TAG>                 {}                   # filter repositories by tags"
+    wsh_echo "                                                      # can be specified multiple times"
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
@@ -646,12 +648,30 @@ rosinstall_yq_repo_tuples()
     if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
     then
         SELECTION+="((.local-name | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
-        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:1}";
         do
             SELECTION+=" or (.local-name | test(\"^${NAME_PATTERN}\$\"))"
         done
         SELECTION+=")"
-    else
+    fi
+
+    if [ ${#WSH_TAGS[@]} -gt 0 ]
+    then
+        if [ -n "${SELECTION}" ]
+        then
+            SELECTION+=" and "
+        fi
+
+        SELECTION+="(.wshandler.tags != null) and ((.wshandler.tags[] | . == \"${WSH_TAGS[0]}\")"
+        for TAG in "${WSH_TAGS[@]:1}";
+        do
+            SELECTION+=" or (.wshandler.tags[] | . == \"${TAG}\")"
+        done
+        SELECTION+=")"
+    fi
+
+    if [ -z "${SELECTION}" ]
+    then
         SELECTION="."
     fi
 
@@ -663,12 +683,30 @@ rosinstall_gojq_repo_tuples()
     if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
     then
         SELECTION+="((.\"local-name\" | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
-        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:1}";
         do
             SELECTION+=" or (.\"local-name\" | test(\"^${NAME_PATTERN}\$\"))"
         done
         SELECTION+=")"
-    else
+    fi
+
+    if [ ${#WSH_TAGS[@]} -gt 0 ]
+    then
+        if [ -n "${SELECTION}" ]
+        then
+            SELECTION+=" and "
+        fi
+
+        SELECTION+="(.wshandler.tags != null) and ((.wshandler.tags[] | . == \"${WSH_TAGS[0]}\")"
+        for TAG in "${WSH_TAGS[@]:1}";
+        do
+            SELECTION+=" or (.wshandler.tags[] | . == \"${TAG}\")"
+        done
+        SELECTION+=")"
+    fi
+
+    if [ -z "${SELECTION}" ]
+    then
         SELECTION="."
     fi
 
@@ -681,13 +719,21 @@ repos_yq_repo_tuples()
     if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
     then
         SELECTION+=" and ((key | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
-        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:1}";
         do
             SELECTION+=" or (key | test(\"^${NAME_PATTERN}\$\"))"
         done
         SELECTION+=")"
-    else
-        SELECTION="."
+    fi
+
+    if [ ${#WSH_TAGS[@]} -gt 0 ]
+    then
+        SELECTION+=" and (.wshandler.tags != null) and ((.wshandler.tags[] | . == \"${WSH_TAGS[0]}\")"
+        for TAG in "${WSH_TAGS[@]:1}";
+        do
+            SELECTION+=" or (.wshandler.tags[] | . == \"${TAG}\")"
+        done
+        SELECTION+=")"
     fi
 
     "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | ${SELECTION}) | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
@@ -700,14 +746,26 @@ repos_gojq_repo_tuples()
     if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
     then
         SELECTION+=" and ((\$k | tostring | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
-        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:1}";
         do
             SELECTION+=" or (\$k | tostring | test(\"^${NAME_PATTERN}\$\"))"
         done
         SELECTION+=")"
     fi
+
+    if [ ${#WSH_TAGS[@]} -gt 0 ]
+    then
+        SELECTION+=" and (.[\$k].wshandler.tags != null) and ((.[\$k].wshandler.tags[] | . == \"${WSH_TAGS[0]}\")"
+        for TAG in "${WSH_TAGS[@]:1}";
+        do
+            SELECTION+=" or (.[\$k].wshandler.tags[] | . == \"${TAG}\")"
+        done
+        SELECTION+=")"
+    fi
+
     "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(${SELECTION}) | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\""
 }
+
 
 
 rosinstall_yq_merge()
@@ -921,7 +979,6 @@ execute_selective_command()
     fi
 
     WSH_NAME_PATTERNS=("${@:2}")
-    export WSH_NAME_PATTERNS
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
@@ -1013,6 +1070,7 @@ WSH_REPOLIST=
 WSH_REPOLISTS=()
 WSH_SORT_COMMAND="sort"
 WSH_BACKUP_FILE=
+WSH_TAGS=()
 
 while [[ $# -gt 0 ]]
 do
@@ -1038,6 +1096,7 @@ do
 
         -k|--keep-going)    WSH_KEEP_GOING="-k";    shift;;
         -l|--list)          WSH_REPOLISTS+=("$2");  shift; shift;;
+        -T|--tag)           WSH_TAGS+=("$2");       shift; shift;;
         -u|--unsorted)      WSH_SORT_COMMAND="cat"; shift;;
 
         clone|init)
