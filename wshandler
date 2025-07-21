@@ -643,23 +643,70 @@ execute_command()
 
 rosinstall_yq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" ".[].$1 | (.local-name + \" \" + .uri + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
+    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
+    then
+        SELECTION+="((.local-name | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        do
+            SELECTION+=" or (.local-name | test(\"^${NAME_PATTERN}\$\"))"
+        done
+        SELECTION+=")"
+    else
+        SELECTION="."
+    fi
+
+    "${WSH_YAML_CMD[@]}" ".[].$1 | select(${SELECTION}) | (.local-name + \" \" + .uri + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
 }
 
 rosinstall_gojq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | \"\(.\"local-name\") \(.uri) \(.version // \"-\")\""
+    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
+    then
+        SELECTION+="((.\"local-name\" | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        do
+            SELECTION+=" or (.\"local-name\" | test(\"^${NAME_PATTERN}\$\"))"
+        done
+        SELECTION+=")"
+    else
+        SELECTION="."
+    fi
+
+    "${WSH_YAML_CMD[@]}" --raw-output ".[].$1 | select(${SELECTION}) | \"\(.\"local-name\") \(.uri) \(.version // \"-\")\""
 }
 
 repos_yq_repo_tuples()
 {
-    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | has(\"type\") and .type == \"$1\") | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
+    SELECTION="(has(\"type\") and .type == \"$1\")"
+    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
+    then
+        SELECTION+=" and ((key | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        do
+            SELECTION+=" or (key | test(\"^${NAME_PATTERN}\$\"))"
+        done
+        SELECTION+=")"
+    else
+        SELECTION="."
+    fi
+
+    "${WSH_YAML_CMD[@]}" ".repositories.* | select(. | ${SELECTION}) | (key + \" \" + .url + \" \" + ((select(has(\"version\") and .version != null) // {\"version\": \"-\"}) | .version))"
 }
 
 repos_gojq_repo_tuples()
 {
-    # shellcheck disable=SC2016
-    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(.[\$k].type == \"$1\") | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\""
+    SELECTION="(.[\$k].type == \"$1\")"
+
+    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ]
+    then
+        SELECTION+=" and ((\$k | tostring | test(\"^${WSH_NAME_PATTERNS[0]}\$\"))"
+        for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]:2}";
+        do
+            SELECTION+=" or (\$k | tostring | test(\"^${NAME_PATTERN}\$\"))"
+        done
+        SELECTION+=")"
+    fi
+    "${WSH_YAML_CMD[@]}" --raw-output ".repositories | keys[] as \$k | select(${SELECTION}) | \"\(\$k) \(.[\$k].url) \(.[\$k].version // \"-\")\""
 }
 
 
@@ -864,28 +911,6 @@ execute_init()
     fi
 }
 
-filter_tuples_by_name()
-{
-    SOURCE_TYPE=$1
-
-    if [ ${#WSH_NAME_PATTERNS[@]} -eq 0 ]
-    then
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}"
-    else
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" \
-            | while read -r NAME REPO VERSION; \
-            do \
-                for NAME_PATTERN in "${WSH_NAME_PATTERNS[@]}"; \
-                do \
-                    if [[ "${NAME}" =~ ^${NAME_PATTERN}$ ]]; \
-                    then \
-                        echo "${NAME}" "${REPO}" "${VERSION}"; \
-                    fi; \
-                done \
-            done
-    fi
-}
-
 execute_selective_command()
 {
     COMMAND_NAME="$1"
@@ -900,7 +925,7 @@ execute_selective_command()
 
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
-        filter_tuples_by_name "${SOURCE_TYPE}" \
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" \
             | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}_${COMMAND_NAME}"
     done
 }
