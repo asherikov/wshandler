@@ -60,6 +60,7 @@ WSH:   -l|--list <FILENAME>           {.rosinstall|.repos} # default depends on 
 WSH:                                                       # can be specified multiple times
 WSH:   -T|--tag <TAG>                 {}                   # filter repositories by tags
 WSH:                                                       # can be specified multiple times
+WSH:   -q|--quiet                                          # suppress most of the output
 WSH:
 WSH: Repository list commands:
 WSH:   Information:

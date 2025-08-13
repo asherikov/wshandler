@@ -9,7 +9,7 @@ WSH_VERSION=
 
 wsh_echo()
 {
-    echo "WSH:" "$@"
+    test "${WSH_QUIET}" = "YES" || echo "WSH:" "$@"
 }
 
 help()
@@ -40,6 +40,7 @@ help()
     wsh_echo "                                                      # can be specified multiple times"
     wsh_echo "  -T|--tag <TAG>                 {}                   # filter repositories by tags"
     wsh_echo "                                                      # can be specified multiple times"
+    wsh_echo "  -q|--quiet                                          # suppress most of the output"
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
@@ -179,7 +180,7 @@ git_scrape()
 
         popd > /dev/null
 
-        wsh_echo "Found unmanaged git repository:  ${GIT_DIR}  ${GIT_REPO}  ${GIT_VERSION}"
+        echo "Found unmanaged git repository:  ${GIT_DIR}  ${GIT_REPO}  ${GIT_VERSION}"
 
         case "${WSH_COMMAND_POLICY}" in
             ask|default)
@@ -192,7 +193,7 @@ git_scrape()
                         [Nn])   ACTION=show;;
                         [Cc])   ACTION=clean;;
                         *)
-                            wsh_echo "Please enter one of y/n/c.";;
+                            echo "Please enter one of y/n/c.";;
                     esac
                 done;;
             show|add|clean)
@@ -442,8 +443,11 @@ status()
     SOURCE_TYPE=$1
 
     DATA=$(
-        echo "name|version|actual version|HM|repository";
-        echo "----|-------|--------------|--|----------";
+        if [ "${WSH_QUIET}" = "NO" ]
+        then
+            echo "name|version|actual version|HM|repository";
+            echo "----|-------|--------------|--|----------";
+        fi
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}" | while read -r -a tuple; do "dir_${SOURCE_TYPE}_status" "${tuple[@]}"; done | "${WSH_SORT_COMMAND}"
     )
 
@@ -458,7 +462,11 @@ status()
         FORMAT_STRING+="%-${MAX_LEN}.${MAX_LEN}s"
     done
 
-    echo "Flags: H - version hash mismatch, M - uncommited changes"
+    if [ "${WSH_QUIET}" = "NO" ]
+    then
+        echo "Flags: H - version hash mismatch, M - uncommited changes"
+    fi
+
     IFS=$'\n' readarray -t ROWS <<< "${DATA}"
     for ROW in "${ROWS[@]}"
     do
@@ -468,10 +476,13 @@ status()
         printf "${FORMAT_STRING} %s\n" "${COLS[@]}"
     done
 
-    echo
+    if [ "${WSH_QUIET}" = "NO" ]
+    then
+        echo
 
-    WSH_COMMAND_POLICY=show
-    scrape "${SOURCE_TYPE}" "${WSH_WORKSPACE_ROOT}"
+        WSH_COMMAND_POLICY=show
+        scrape "${SOURCE_TYPE}" "${WSH_WORKSPACE_ROOT}"
+    fi
 }
 
 scrape()
@@ -1070,6 +1081,7 @@ WSH_REPOLISTS=()
 WSH_SORT_COMMAND="sort"
 WSH_BACKUP_FILE=
 WSH_TAGS=()
+WSH_QUIET=NO
 
 while [[ $# -gt 0 ]]
 do
@@ -1097,6 +1109,7 @@ do
         -l|--list)          WSH_REPOLISTS+=("$2");  shift; shift;;
         -T|--tag)           WSH_TAGS+=("$2");       shift; shift;;
         -u|--unsorted)      WSH_SORT_COMMAND="cat"; shift;;
+        -q|--quiet)         WSH_QUIET="YES";        shift;;
 
         clone|init)
             "execute_$1" "${@:2}"

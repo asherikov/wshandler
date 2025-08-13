@@ -33,6 +33,7 @@ wrap_test:
 test_update:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ status
+	${WSHANDLER} -t ${TYPE} -r tests/update/ -q status
 	${WSHANDLER} -t ${TYPE} -r tests/update/ -u status
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update "staticoma.*"
 	test -d tests/update/staticoma
