@@ -176,7 +176,7 @@ git_scrape()
 
         GIT_VERSION=$(git branch --show-current | tr -d '\n')
         GIT_VERSION=${GIT_VERSION:-"$(git describe --tags | tr -d '\n')"}
-        GIT_VERSION=${GIT_VERSION:-"$(git rev-parse HEAD | tr -d '\n')"}
+        GIT_VERSION=${GIT_VERSION:-"$(git rev-parse --verify HEAD | tr -d '\n')"}
 
         popd > /dev/null
 
@@ -261,12 +261,12 @@ dir_git_uncommitted()
 
 dir_git_get_hash()
 {
-    git rev-parse HEAD
+    git rev-parse --verify HEAD
 }
 
 dir_git_get_branch()
 {
-    git rev-parse --abbrev-ref HEAD
+    git rev-parse --verify --abbrev-ref HEAD
 }
 
 dir_git_status()
@@ -281,7 +281,7 @@ dir_git_status()
     if [ -d "${GIT_DIR}/.git" ]
     then
         cd "${GIT_DIR}"
-        GIT_VERSION_HASH=$(git rev-parse "${GIT_VERSION}" 2> /dev/null || echo -n "-")
+        GIT_VERSION_HASH=$(git rev-parse --verify "${GIT_VERSION}^{commit}" 2> /dev/null || echo -n "-")
         GIT_ACTUAL_VERSION=$(git describe --dirty --broken --all --long --always | tr -d '\n')
         GIT_ACTUAL_HASH=$(dir_git_get_hash || echo -n "-")
     fi
@@ -930,11 +930,11 @@ execute_branch()
 
     case ${ACTION} in
         new)
-            execute_foreach git "((git status --porcelain | grep . > /dev/null) && git checkout -b ${BRANCH}) || true";;
+            execute_foreach git "((git status --porcelain | grep . > /dev/null) && git checkout -b '${BRANCH}') || true";;
         allnew)
-            execute_foreach git "git checkout -b ${BRANCH}";;
+            execute_foreach git "git checkout -b '${BRANCH}'";;
         delete)
-            execute_foreach git "(git ls-remote --exit-code --heads origin ${BRANCH} > /dev/null && git push origin --delete ${BRANCH}) || true";;
+            execute_foreach git "(git ls-remote --exit-code --heads origin '${BRANCH}' > /dev/null && git push origin --delete '${BRANCH}') || true";;
         show)
             execute_foreach git "git branch -a | grep '${BRANCH}'";;
         merge)
