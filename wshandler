@@ -206,6 +206,8 @@ git_scrape()
             add)    execute_add git "${GIT_DIR}" "${GIT_REPO}" "${GIT_VERSION}";;
             clean)  rm -rf "${REPO_DIR}";;
         esac
+
+        ACTION=""
     done
 }
 
