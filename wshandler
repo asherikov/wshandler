@@ -494,6 +494,8 @@ scrape()
 
 check_workspace()
 {
+    WSH_XARGS=(xargs --no-run-if-empty -P "${WSH_JOBS}")
+
     if [ "${WSH_YAML_TOOL}" = "auto" ]
     then
         YAML_TOOL_LIST=(gojq yq)
@@ -1075,7 +1077,7 @@ WSH_SOURCE_TYPES="git"
 WSH_COMMAND_POLICY=default
 WSH_JOBS=1
 WSH_INDENT=4
-WSH_XARGS=(xargs --no-run-if-empty -P "${WSH_JOBS}")
+WSH_XARGS=()
 WSH_KEEP_GOING=""
 WSH_YAML_BINARY=
 WSH_REPOLIST=
@@ -1101,10 +1103,10 @@ do
         -y|--yaml_tool)     WSH_YAML_TOOL="$2";     shift; shift;;
         -Y|--yaml_binary)   WSH_YAML_BINARY=$2;     shift; shift;;
         -r|--root)          WSH_WORKSPACE_ROOT=$2;  shift; shift;;
-        -c|--cache)         WSH_CACHE_DIR=$2 shift; shift;;
+        -c|--cache)         WSH_CACHE_DIR=$2;       shift; shift;;
         -t|--type)          WSH_WORKSPACE_TYPE=$2;  shift; shift;;
-        -j|--jobs)          WSH_JOBS=$2 shift;      shift;;
-        -i|--indent)        WSH_INDENT=$2 shift;    shift;;
+        -j|--jobs)          WSH_JOBS=$2;            shift; shift;;
+        -i|--indent)        WSH_INDENT=$2;          shift; shift;;
         -p|--policy)        WSH_COMMAND_POLICY=$2;  shift; shift;;
 
         -k|--keep-going)    WSH_KEEP_GOING="-k";    shift;;
