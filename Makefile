@@ -116,6 +116,7 @@ test_init:
 
 test_set_version:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master
+	! ${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url NONE NONE
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_name qpmad_tag 1.3.0
 	grep 1.3.0 tests/update/.${TYPE} > /dev/null
 
@@ -128,7 +129,7 @@ test_branch:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ branch new as_remove_readme
 	env GIT_AUTHOR_NAME="Your Name" GIT_AUTHOR_EMAIL="you@example.com" GIT_COMMITTER_NAME="Your Name" GIT_COMMITTER_EMAIL="you@example.com" ${WSHANDLER} -t ${TYPE} --root tests/update/ commit "Remove README.md"
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_to_branch as_remove_readme
-	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_to_branch as_nonexistent
+	! ${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_to_branch as_nonexistent
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	grep as_remove_readme tests/update/.${TYPE} > /dev/null
 	! grep as_nonexistent tests/update/.${TYPE} > /dev/null
