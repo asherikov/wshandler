@@ -2,7 +2,8 @@ Introduction
 ============
 
 `wshandler` is a workspace management utility similar to
-<https://github.com/dirk-thomas/vcstool>,
+<https://github.com/dirk-thomas/vcstool> (now
+<https://github.com/ros-infrastructure/vcs2l>),
 <https://github.com/ErickKramer/ripvcs/>, and discontinued
 <https://github.com/vcstools/wstool>. A workspace is a directory containing a
 set of packages (typically git repositories) under development, see
