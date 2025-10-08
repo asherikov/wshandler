@@ -112,11 +112,12 @@ WSH:     prune [<PACKAGE_NAME> ...]        # git prune
 WSH:     push [<PACKAGE_NAME> ...]         # git push
 WSH:     unshallow [<PACKAGE_NAME> ...]    # git unshallow
 WSH:     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
-WSH:       default     # plain clone
-WSH:       shallow     # shallow clone
-WSH:       nolfs       # disable git LFS
-WSH:       rebase      # do git pull with rebase
-WSH:       unmodified  # only unmodified repos
+WSH:       default      # plain clone
+WSH:       shallow      # shallow clone
+WSH:       nolfs        # disable git LFS
+WSH:       rebase       # do git pull with rebase
+WSH:       unmodified   # only unmodified repos
+WSH:       nosubmodules # do not checkout submodules
 WSH:
 WSH:   Generic commands:
 WSH:     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
