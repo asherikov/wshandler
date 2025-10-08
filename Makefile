@@ -147,6 +147,12 @@ test_branch:
 test_multilist:
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
+	! ${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list-discover status
+	${WSHANDLER} -t ${TYPE} --list-discover status
+	cp tests/remove/.${TYPE} tests/update/multilist.${TYPE}
+	${WSHANDLER} -t ${TYPE} --list-discover status
+	rm tests/update/multilist.${TYPE}
+	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ update
 
 test_tags:

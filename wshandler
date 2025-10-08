@@ -29,18 +29,23 @@ help()
     wsh_echo "  (VALID OPTIONS IN A LIST)"
     wsh_echo ""
     wsh_echo "Common arguments:"
-    wsh_echo "  -y|--yaml_tool auto|gojq|yq    {auto}               # use gojq or yq, auto prefers gojq"
-    wsh_echo "  -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # override yaml tool (yq/gojq) path"
-    wsh_echo "  -r|--root <WORKSPACE_ROOT>     {./}                 # parent of --list if it is a path"
-    wsh_echo "  -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # temporary files created here"
-    wsh_echo "  -t|--type rosinstall|repos     {repos}              # repository list format"
-    wsh_echo "  -i|--indent 1|2|3...           {4}                  # default indentation in yaml repository list"
-    wsh_echo "  -k|--keep-going                {false}              # do not stop on errors"
-    wsh_echo "  -l|--list <FILENAME>           {.rosinstall|.repos} # default depends on --type,"
-    wsh_echo "                                                      # can be specified multiple times"
-    wsh_echo "  -T|--tag <TAG>                 {}                   # filter repositories by tags"
-    wsh_echo "                                                      # can be specified multiple times"
-    wsh_echo "  -q|--quiet                                          # suppress most of the output"
+    wsh_echo "  -y|--yaml_tool auto|gojq|yq    {auto}               # Use gojq or yq, auto prefers gojq"
+    wsh_echo "  -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # Override yaml tool (yq/gojq) path"
+    wsh_echo "  -r|--root <WORKSPACE_ROOT>     {./}                 # Parent of --list if it is a path"
+    wsh_echo "  -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # Temporary files created here"
+    wsh_echo "  -t|--type rosinstall|repos     {repos}              # Repository list format"
+    wsh_echo "  -i|--indent 1|2|3...           {4}                  # Default indentation in yaml repository list"
+    wsh_echo "  -k|--keep-going                {false}              # Do not stop on errors"
+    wsh_echo "  -l|--list <FILENAME>           {.rosinstall|.repos} # Default depends on --type,"
+    wsh_echo "                                                      #can be specified multiple times,"
+    wsh_echo "                                                      #mutually exclusive with -L"
+    wsh_echo "  -L|--list-discover                                  # Automatically discover lists in the root,"
+    wsh_echo "                                                      #recursively searches for *.<type> files,"
+    wsh_echo "                                                      #mutually exclusive with -l,"
+    wsh_echo "                                                      #should be set after -r and -t."
+    wsh_echo "  -T|--tag <TAG>                 {}                   # Filter repositories by tags"
+    wsh_echo "                                                      #can be specified multiple times"
+    wsh_echo "  -q|--quiet                                          # Suppress most of the output"
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
@@ -542,8 +547,6 @@ check_workspace()
             help 21;;
     esac
 
-
-    WSH_WORKSPACE_TYPE=${WSH_WORKSPACE_TYPE:-"repos"}
 
     if [ ${#WSH_REPOLISTS[@]} -eq 0 ]
     then
@@ -1087,10 +1090,12 @@ WSH_KEEP_GOING=""
 WSH_YAML_BINARY=
 WSH_REPOLIST=
 WSH_REPOLISTS=()
+WSH_REPOLIST_SOURCE=
 WSH_SORT_COMMAND="sort"
 WSH_BACKUP_FILE=
 WSH_TAGS=()
 WSH_QUIET=NO
+WSH_WORKSPACE_TYPE=repos
 
 while [[ $# -gt 0 ]]
 do
@@ -1115,10 +1120,30 @@ do
         -p|--policy)        WSH_COMMAND_POLICY=$2;  shift; shift;;
 
         -k|--keep-going)    WSH_KEEP_GOING="-k";    shift;;
-        -l|--list)          WSH_REPOLISTS+=("$2");  shift; shift;;
         -T|--tag)           WSH_TAGS+=("$2");       shift; shift;;
         -u|--unsorted)      WSH_SORT_COMMAND="cat"; shift;;
         -q|--quiet)         WSH_QUIET="YES";        shift;;
+
+        -l|--list)
+            if [ "${WSH_REPOLIST_SOURCE}" = "-L" ]
+            then
+                wsh_echo "-l and -L are incompatible.";
+                exit 6
+            fi
+            WSH_REPOLIST_SOURCE="-l";
+            WSH_REPOLISTS+=("$2");
+            shift; shift;;
+        -L|--list-discover)
+            if [ "${WSH_REPOLIST_SOURCE}" = "-l" ]
+            then
+                wsh_echo "-l and -L are incompatible.";
+                exit 6
+            fi
+            WSH_REPOLIST_SOURCE="-L";
+            DISCOVER_PATH=${WSH_WORKSPACE_ROOT:-"./"};
+            readarray -t WSH_REPOLISTS <<< "$(find "${DISCOVER_PATH}" -iname "*.${WSH_WORKSPACE_TYPE}" | sort)";
+            echo "${WSH_REPOLISTS[@]}"
+            shift;;
 
         clone|init)
             "execute_$1" "${@:2}"
