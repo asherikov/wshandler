@@ -41,6 +41,8 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	test -d tests/update/staticoma
+	touch tests/update/staticoma/x
+	${WSHANDLER} -t ${TYPE} --policy unmodified -r tests/update/ --jobs 2 update | grep "Skipping modified"
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean staticoma
 	! test -d tests/update/staticoma
 	test -d tests/update/catkin

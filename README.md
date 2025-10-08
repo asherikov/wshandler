@@ -11,7 +11,7 @@ set of packages (typically git repositories) under development, see
 or <http://wiki.ros.org/catkin/workspaces> for more information.
 
 Key features:
-- `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, e.g.,
+- `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, i.e.,
   it is easy to keep track of your local changes with respect to the upstream;
 - `wshandler` is implemented in `bash` and relies on either `gojq`
   <https://github.com/itchyny/gojq> or `yq` <https://github.com/mikefarah/yq>
@@ -50,18 +50,23 @@ WSH:   [OPTIONAL ARGUMENT]
 WSH:   (VALID OPTIONS IN A LIST)
 WSH:
 WSH: Common arguments:
-WSH:   -y|--yaml_tool auto|gojq|yq    {auto}               # use gojq or yq, auto prefers gojq
-WSH:   -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # override yaml tool (yq/gojq) path
-WSH:   -r|--root <WORKSPACE_ROOT>     {./}                 # parent of --list if it is a path
-WSH:   -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # temporary files created here
-WSH:   -t|--type rosinstall|repos     {repos}              # repository list format
-WSH:   -i|--indent 1|2|3...           {4}                  # default indentation in yaml repository list
-WSH:   -k|--keep-going                {false}              # do not stop on errors
-WSH:   -l|--list <FILENAME>           {.rosinstall|.repos} # default depends on --type,
-WSH:                                                       # can be specified multiple times
-WSH:   -T|--tag <TAG>                 {}                   # filter repositories by tags
-WSH:                                                       # can be specified multiple times
-WSH:   -q|--quiet                                          # suppress most of the output
+WSH:   -y|--yaml_tool auto|gojq|yq    {auto}               # Use gojq or yq, auto prefers gojq
+WSH:   -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # Override yaml tool (yq/gojq) path
+WSH:   -r|--root <WORKSPACE_ROOT>     {./}                 # Parent of --list if it is a path
+WSH:   -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # Temporary files created here
+WSH:   -t|--type rosinstall|repos     {repos}              # Repository list format
+WSH:   -i|--indent 1|2|3...           {4}                  # Default indentation in yaml repository list
+WSH:   -k|--keep-going                {false}              # Do not stop on errors
+WSH:   -l|--list <FILENAME>           {.rosinstall|.repos} # Default depends on --type,
+WSH:                                                       #can be specified multiple times,
+WSH:                                                       #mutually exclusive with -L
+WSH:   -L|--list-discover                                  # Automatically discover lists in the root,
+WSH:                                                       #recursively searches for *.<type> files,
+WSH:                                                       #mutually exclusive with -l,
+WSH:                                                       #should be set after -r and -t.
+WSH:   -T|--tag <TAG>                 {}                   # Filter repositories by tags
+WSH:                                                       #can be specified multiple times
+WSH:   -q|--quiet                                          # Suppress most of the output
 WSH:
 WSH: Repository list commands:
 WSH:   Information:
@@ -108,6 +113,7 @@ WSH:       default     # plain clone
 WSH:       shallow     # shallow clone
 WSH:       nolfs       # disable git LFS
 WSH:       rebase      # do git pull with rebase
+WSH:       unmodified  # only unmodified repos
 WSH:
 WSH:   Generic commands:
 WSH:     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository

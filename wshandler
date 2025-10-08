@@ -92,6 +92,7 @@ help()
     wsh_echo "      shallow     # shallow clone"
     wsh_echo "      nolfs       # disable git LFS"
     wsh_echo "      rebase      # do git pull with rebase"
+    wsh_echo "      unmodified  # only unmodified repos"
     wsh_echo ""
     wsh_echo "  Generic commands:"
     wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository"
@@ -361,8 +362,33 @@ dir_git_update()
     pushd "${GIT_DIR}" > /dev/null
     IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
 
+    UNMODIFIED=false
+    for POLICY in "${POLICIES[@]}";
+    do
+        if [ "${POLICY}" = "unmodified" ]
+        then
+            UNMODIFIED=true
+        fi
+    done
+
     if [ -d ".git" ]
     then
+        if [ "${UNMODIFIED}" = "true" ]
+        then
+            GIT_VERSION_HASH=$(git rev-parse --verify "${GIT_VERSION}^{commit}" 2> /dev/null || echo -n "-")
+            GIT_ACTUAL_HASH=$(dir_git_get_hash || echo -n "-")
+
+            if [ "${GIT_ACTUAL_HASH}" != "-" ];
+            then
+                if [ "${GIT_VERSION_HASH}" != "${GIT_ACTUAL_HASH}" ] || dir_git_uncommitted;
+                then
+                    wsh_echo "Skipping modified '${GIT_DIR}'."
+                    popd > /dev/null
+                    return;
+                fi
+            fi
+        fi
+
         git fetch
         if git diff --exit-code > /dev/null && git diff --cached --exit-code > /dev/null
         then
@@ -1188,12 +1214,7 @@ do
             exit;;
 
         dir_*_update|dir_run)
-            if [ -n "${WSH_KEEP_GOING}" ]
-            then
-                "$1" "${@:2}" || true
-            else
-                "$1" "${@:2}"
-            fi
+            "$1" "${@:2}" || test -n "${WSH_KEEP_GOING}"
             exit;;
 
         dir_*)
