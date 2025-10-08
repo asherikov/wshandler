@@ -20,7 +20,10 @@ Key features:
 - supported repository list formats: `repos` (default) and `rosinstall`
   (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>);
 - repository entries can be tagged for selective updates and status
-  information, e.g., `wshandler: {tags: [mytag]}`.
+  information, e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for
+  examples;
+- experimental sparse checkouts for extries that contain `wshandler: {sparse:
+  [<path>]}`, see `./tests/sparse` for examples.
 
 
 Installation

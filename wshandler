@@ -143,12 +143,8 @@ update_root()
                     for POLICY in "${POLICIES[@]}";
                     do
                         case ${POLICY} in
-                            rebase)
-                                PULL_ARGS+=(--rebase)
-                                ;;
-                            nolfs)
-                                PULL_ENV+=("GIT_LFS_SKIP_SMUDGE=1")
-                                ;;
+                            rebase) PULL_ARGS+=(--rebase);;
+                            nolfs)  PULL_ENV+=("GIT_LFS_SKIP_SMUDGE=1");;
                         esac
                     done
                     # do not fail, e.g., the branch might be deleted from git remote
@@ -201,8 +197,7 @@ git_scrape()
                         [YyAa]) ACTION=add;;
                         [Nn])   ACTION=show;;
                         [Cc])   ACTION=clean;;
-                        *)
-                            echo "Please enter one of y/n/c.";;
+                        *)      echo "Please enter one of y/n/c.";;
                     esac
                 done;;
             show|add|clean)
@@ -222,25 +217,27 @@ git_scrape()
 
 git_clone()
 {
-    REPO_URL=$1
-    VERSION=$2
-    DIR=$3
+    SPARSE=$1
+    REPO_URL=$2
+    VERSION=$3
+    DIR=$4
 
     CLONE_ENV=(env)
     CLONE_ARGS=(--recurse-submodules)
     for POLICY in "${POLICIES[@]}";
     do
         case ${POLICY} in
-            shallow)
-                # --no-tags -- we need tags
-                # --single-branch -- implied by --depth
-                CLONE_ARGS+=(--depth 1 --shallow-submodules)
-                ;;
-            nolfs)
-                CLONE_ENV+=("GIT_LFS_SKIP_SMUDGE=1")
-                ;;
+            # --no-tags -- we need tags
+            # --single-branch -- implied by --depth
+            shallow) CLONE_ARGS+=(--depth 1 --shallow-submodules);;
+            nolfs)   CLONE_ENV+=("GIT_LFS_SKIP_SMUDGE=1");;
         esac
     done
+
+    if [ "${SPARSE}" = "ON" ]
+    then
+        CLONE_ARGS+=(--sparse)
+    fi
 
     SOURCE_DESTINATION=("${REPO_URL}")
     if [ -n "${DIR}" ]
@@ -354,6 +351,7 @@ dir_git_push()
 
 dir_git_update()
 {
+    NAME=$1
     REPO_DIR="${WSH_WORKSPACE_ROOT:?}/$1"
     REPO_URL="$2"
     REPO_VERSION="$3"
@@ -365,7 +363,7 @@ dir_git_update()
     pushd "${REPO_DIR}" > /dev/null
     IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
 
-    UNMODIFIED=ON
+    UNMODIFIED=NO
     for POLICY in "${POLICIES[@]}";
     do
         if [ "${POLICY}" = "unmodified" ]
@@ -374,12 +372,33 @@ dir_git_update()
         fi
     done
 
+    SPARSE=NO
+    IFS='.' read -ra GIT_VERSION <<< "$(git version | grep -o '[0-9]*\.[0-9]*\.[0-9]')"
+    if [ "${GIT_VERSION[0]}" -ge 2 ] || { [ "${GIT_VERSION[0]}" -eq 2 ] && [ "${GIT_VERSION[1]}" -ge 25 ]; }
+    then
+        SPARSE_PATHS=()
+        readarray -t SPARSE_PATHS <<< "$("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_sparse" "${NAME}" "${WSH_REPOLISTS[0]}")" || true
+        if [ ${#SPARSE_PATHS[@]} -ge 1 ] && [ "${SPARSE_PATHS[0]}" != "" ]
+        then
+            SPARSE=YES
+        fi
+    fi
+
+    CLONED=NO
     if [ ! -d ".git" ]
     then
         rm -rf "${REPO_DIR:?}/*"
+        git_clone "${SPARSE}" "${REPO_URL}" "${REPO_VERSION}" "./"
+        CLONED=YES
+    fi
 
-        git_clone "${REPO_URL}" "${REPO_VERSION}" "./"
-    else
+    if [ "${CLONED}" = "NO" ] || [ "${SPARSE}" = "YES" ]
+    then
+        if [ "${SPARSE}" = "YES" ]
+        then
+            test "${REPO_VERSION}" == '-' || git sparse-checkout set "${SPARSE_PATHS[@]}"
+        fi
+
         if [ "${UNMODIFIED}" = "YES" ]
         then
             REPO_VERSION_HASH=$(git rev-parse --verify "${REPO_VERSION}^{commit}" 2> /dev/null || echo -n "-")
@@ -514,10 +533,8 @@ scrape()
     "$1_scrape" "${@:2}"
 }
 
-check_workspace()
+initialize_yaml_tool()
 {
-    WSH_XARGS=(xargs --no-run-if-empty -P "${WSH_JOBS}")
-
     if [ "${WSH_YAML_TOOL}" = "auto" ]
     then
         YAML_TOOL_LIST=(gojq yq)
@@ -555,7 +572,13 @@ check_workspace()
         gojq) WSH_YAML_CMD=("${WSH_YAML_BINARY}" --yaml-input "--indent=${WSH_INDENT}");;
         *)    wsh_exit 21 "'${WSH_YAML_TOOL}' is not a valid yaml tool.";;
     esac
+}
 
+check_workspace()
+{
+    WSH_XARGS=(xargs --no-run-if-empty -P "${WSH_JOBS}")
+
+    initialize_yaml_tool
 
     if [ ${#WSH_REPOLISTS[@]} -eq 0 ]
     then
@@ -644,7 +667,7 @@ check_workspace()
 
     test -d "${WSH_WORKSPACE_ROOT}" || (wsh_echo "'${WSH_WORKSPACE_ROOT}' does not exist" && false)
 
-    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -y "${WSH_YAML_TOOL}" -Y "${WSH_YAML_BINARY}" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE}" -p "${WSH_COMMAND_POLICY}")
+    WSHANDLER=("$(realpath "${BASH_SOURCE[0]}")" -l "${WSH_REPOLIST}" -y "${WSH_YAML_TOOL}" -Y "${WSH_YAML_BINARY}" -r "${WSH_WORKSPACE_ROOT}" -c "${WSH_CACHE_DIR}" -t "${WSH_WORKSPACE_TYPE}" -p "${WSH_COMMAND_POLICY}")
     if [ -n "${WSH_KEEP_GOING}" ]
     then
         WSHANDLER+=("${WSH_KEEP_GOING}")
@@ -819,6 +842,27 @@ repos_gojq_merge()
 }
 
 
+rosinstall_yq_sparse()
+{
+    "${WSH_YAML_CMD[@]}" ".[] | select(.*.local-name == \"$1\") | .git.wshandler.sparse[]" "$2" 2> /dev/null
+}
+
+rosinstall_gojq_sparse()
+{
+    "${WSH_YAML_CMD[@]}" --raw-output ".[] | select(.[].\"local-name\" == \"$1\") | .git.wshandler.sparse" "$2" 2> /dev/null
+}
+
+repos_yq_sparse()
+{
+    "${WSH_YAML_CMD[@]}" ".repositories.\"$1\".wshandler.sparse[]" "$2" 2> /dev/null
+}
+
+repos_gojq_sparse()
+{
+    "${WSH_YAML_CMD[@]}" --raw-output ".repositories.\"$1\".wshandler.sparse[]" "$2" 2> /dev/null
+}
+
+
 execute_merge()
 {
     SECOND_FILE=$1
@@ -967,7 +1011,7 @@ execute_commit()
 
 execute_clone()
 {
-    "$1_clone" "$2" "$3" "${WSH_WORKSPACE_ROOT}"
+    "$1_clone" "NO" "$2" "$3" "${WSH_WORKSPACE_ROOT}"
 
     check_workspace update
     execute_selective_command update
@@ -983,7 +1027,7 @@ execute_init()
         pushd "${WSH_WORKSPACE_ROOT}" > /dev/null
         while [[ $# -gt 0 ]]
         do
-            git_clone "$1"
+            git_clone "NO" "$1"
             shift
         done
         popd > /dev/null
@@ -1183,6 +1227,7 @@ do
             exit;;
 
         dir_*_update|dir_run)
+            initialize_yaml_tool
             "$1" "${@:2}" || test -n "${WSH_KEEP_GOING}"
             exit;;
 

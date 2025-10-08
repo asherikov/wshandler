@@ -173,6 +173,10 @@ test_tags:
 	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 -T tag2 status | grep staticoma
 	! ${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 -T tag2 status | grep qpmad
 
+test_sparse:
+	${WSHANDLER} -t ${TYPE} --root tests/sparse/ clean
+	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs update
+	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs update
 
 test_root_git:
 	rm -Rf tests/root_git
