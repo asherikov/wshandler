@@ -91,11 +91,12 @@ help()
     wsh_echo "    push [<PACKAGE_NAME> ...]         # git push"
     wsh_echo "    unshallow [<PACKAGE_NAME> ...]    # git unshallow"
     wsh_echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull"
-    wsh_echo "      default     # plain clone"
-    wsh_echo "      shallow     # shallow clone"
-    wsh_echo "      nolfs       # disable git LFS"
-    wsh_echo "      rebase      # do git pull with rebase"
-    wsh_echo "      unmodified  # only unmodified repos"
+    wsh_echo "      default      # plain clone"
+    wsh_echo "      shallow      # shallow clone"
+    wsh_echo "      nolfs        # disable git LFS"
+    wsh_echo "      rebase       # do git pull with rebase"
+    wsh_echo "      unmodified   # only unmodified repos"
+    wsh_echo "      nosubmodules # do not checkout submodules"
     wsh_echo ""
     wsh_echo "  Generic commands:"
     wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository"
@@ -223,18 +224,23 @@ git_clone()
     DIR=$4
 
     CLONE_ENV=(env)
-    CLONE_ARGS=(--recurse-submodules)
+    SUBMODULES=YES
     for POLICY in "${POLICIES[@]}";
     do
         case ${POLICY} in
             # --no-tags -- we need tags
             # --single-branch -- implied by --depth
-            shallow) CLONE_ARGS+=(--depth 1 --shallow-submodules);;
-            nolfs)   CLONE_ENV+=("GIT_LFS_SKIP_SMUDGE=1");;
+            shallow)      CLONE_ARGS+=(--depth 1 --shallow-submodules);;
+            nolfs)        CLONE_ENV+=("GIT_LFS_SKIP_SMUDGE=1");;
+            nosubmodules) SUBMODULES=NO;;
         esac
     done
 
-    if [ "${SPARSE}" = "ON" ]
+    if [ "${SUBMODULES}" = "YES" ]
+    then
+        CLONE_ARGS+=(--recurse-submodules)
+    fi
+    if [ "${SPARSE}" = "YES" ]
     then
         CLONE_ARGS+=(--sparse)
     fi

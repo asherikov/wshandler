@@ -22,6 +22,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_init
 	@${MAKE} wrap_test TEST=test_multilist
 	@${MAKE} wrap_test TEST=test_tags
+	@${MAKE} wrap_test TEST=test_sparse
 
 wrap_test:
 	@echo ""
@@ -37,8 +38,10 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ -u status
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update "staticoma.*"
 	test -d tests/update/staticoma
-	! test -d tests/update/catkin
+	test ! -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
+	# test submodule
+	test -f tests/update/qpmad_tag/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	test -d tests/update/staticoma
 	touch tests/update/staticoma/x
@@ -47,7 +50,9 @@ test_update:
 	! test -d tests/update/staticoma
 	test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
-	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow update
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,nosubmodules update
+	# test that submodule is missing
+	test ! -f tests/update/qpmad_tag/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./ is_source_space
 	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow staticoma
@@ -125,7 +130,7 @@ test_set_version:
 test_branch:
 	cp tests/update/.${TYPE} tests/update/.${TYPE}.test_branch
 	${WSHANDLER} -t ${TYPE} --root tests/update/ clean
-	${WSHANDLER} -t ${TYPE} --root tests/update/ update
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -p shallow update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ branch show
 	rm -Rf tests/update/staticoma_master/README.md
 	${WSHANDLER} -t ${TYPE} --root tests/update/ branch new as_remove_readme
@@ -158,7 +163,7 @@ test_multilist:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	mv tests/update/renamed.${TYPE} tests/update/.${TYPE}
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
-	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ update
+	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ -p shallow update
 
 test_tags:
 	${WSHANDLER} -t ${TYPE} --root tests/tags/ -T tag1 status | grep catkin
@@ -175,8 +180,8 @@ test_tags:
 
 test_sparse:
 	${WSHANDLER} -t ${TYPE} --root tests/sparse/ clean
-	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs update
-	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs update
+	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs,nosubmodules update
+	${WSHANDLER} -t ${TYPE} --root tests/sparse -p shallow,nolfs,nosubmodules update
 
 test_root_git:
 	rm -Rf tests/root_git
@@ -184,7 +189,7 @@ test_root_git:
 	touch tests/root_git/.repos
 	touch tests/root_git/.rosinstall
 	cd tests/root_git; git init
-	${WSHANDLER} --root tests/root_git update
+	${WSHANDLER} --root tests/root_git -p shallow,nosubmodules update
 
 shellcheck:
 	shellcheck wshandler
