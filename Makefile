@@ -150,10 +150,13 @@ test_multilist:
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
 	! ${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list-discover status
-	${WSHANDLER} -t ${TYPE} --list-discover status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ --list-discover status
 	cp tests/remove/.${TYPE} tests/update/multilist.${TYPE}
-	${WSHANDLER} -t ${TYPE} --list-discover status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ --list-discover status
 	rm tests/update/multilist.${TYPE}
+	mv tests/update/.${TYPE} tests/update/renamed.${TYPE}
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	mv tests/update/renamed.${TYPE} tests/update/.${TYPE}
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} status
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} --list tests/remove/.${TYPE} --root tests/update/ update
 

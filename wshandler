@@ -12,15 +12,18 @@ wsh_echo()
     test "${WSH_QUIET}" = "YES" || echo "WSH:" "$@"
 }
 
+wsh_exit()
+{
+    wsh_echo "$2"
+    exit "$1"
+}
+
 help()
 {
     EXIT_CODE=${1:-"0"}
     wsh_echo "Usage (default values are shown in curly braces):"
     wsh_echo "  wshandler [<COMMON_ARGS>] [<COMMAND_ARGS>] <COMMAND> <COMMAND_ARGS>"
-    if [ -n "${WSH_VERSION}" ]
-    then
-        wsh_echo "  wshandler -v|--version"
-    fi
+    test -z "${WSH_VERSION}" || wsh_echo "  wshandler -v|--version"
     wsh_echo ""
     wsh_echo "Notation:"
     wsh_echo "  <REQUIRED ARGUMENT>"
@@ -362,18 +365,18 @@ dir_git_update()
     pushd "${GIT_DIR}" > /dev/null
     IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
 
-    UNMODIFIED=false
+    UNMODIFIED=ON
     for POLICY in "${POLICIES[@]}";
     do
         if [ "${POLICY}" = "unmodified" ]
         then
-            UNMODIFIED=true
+            UNMODIFIED=YES
         fi
     done
 
     if [ -d ".git" ]
     then
-        if [ "${UNMODIFIED}" = "true" ]
+        if [ "${UNMODIFIED}" = "YES" ]
         then
             GIT_VERSION_HASH=$(git rev-parse --verify "${GIT_VERSION}^{commit}" 2> /dev/null || echo -n "-")
             GIT_ACTUAL_HASH=$(dir_git_get_hash || echo -n "-")
@@ -434,14 +437,12 @@ dir_git_merge()
     then
         if dir_git_uncommitted
         then
-            wsh_echo "Uncommited changes detected in '${NAME}'"
-            exit 30
+            wsh_exit 30 "Uncommited changes detected in '${NAME}'"
         fi
 
         if ! git rev-parse --verify "${TARGET_BRANCH}" 2> /dev/null
         then
-            wsh_echo "No target branch '${TARGET_BRANCH}' in '${NAME}'"
-            exit 31
+            wsh_exit 31 "No target branch '${TARGET_BRANCH}' in '${NAME}'"
         fi
 
         git checkout "${TARGET_BRANCH}"
@@ -451,11 +452,7 @@ dir_git_merge()
 
 dir_git_assert()
 {
-    if [ ! -d "$1/.git" ]
-    then
-        wsh_echo "${NAME}: is not a git repository'"
-        exit 40
-    fi
+    test -d "$1/.git" || wsh_exit 40 "${NAME}: is not a git repository'"
 }
 
 
@@ -557,11 +554,7 @@ check_workspace()
         WSH_YAML_TOOL=""
     done
 
-    if [ -z "${WSH_YAML_TOOL}" ]
-    then
-        wsh_echo "Cannot find gojq or yq."
-        exit 20
-    fi
+    test -n "${WSH_YAML_TOOL}" || wsh_exit 20 "Cannot find gojq or yq."
 
     case "${WSH_YAML_TOOL}" in
         yq) WSH_YAML_CMD=("${WSH_YAML_BINARY}" --indent "${WSH_INDENT}")
@@ -569,8 +562,7 @@ check_workspace()
         gojq) WSH_YAML_CMD=("${WSH_YAML_BINARY}" --yaml-input "--indent=${WSH_INDENT}")
             ;;
         *)
-            wsh_echo "'${WSH_YAML_TOOL}' is not a valid yaml tool.";
-            help 21;;
+            wsh_exit 21 "'${WSH_YAML_TOOL}' is not a valid yaml tool.";;
     esac
 
 
@@ -578,6 +570,16 @@ check_workspace()
     then
         WSH_WORKSPACE_ROOT="$(realpath "${WSH_WORKSPACE_ROOT:-"./"}")/"
         WSH_REPOLIST="${WSH_WORKSPACE_ROOT}/.${WSH_WORKSPACE_TYPE}"
+        if [ ! -f "${WSH_REPOLIST}" ]
+        then
+            discover_lists "${WSH_WORKSPACE_ROOT}" -maxdepth 1;
+        fi
+    fi
+
+    if [ ${#WSH_REPOLISTS[@]} -eq 0 ] || [ "${WSH_REPOLISTS[0]}" = "" ]
+    then
+        # nothing has been found, WSH_REPOLIST points to a nonexistent file
+        true
     elif [ ${#WSH_REPOLISTS[@]} -eq 1 ]
     then
         WSH_REPOLIST="${WSH_REPOLISTS[0]}"
@@ -607,11 +609,7 @@ check_workspace()
 
         for REPOLIST in "${WSH_REPOLISTS[@]}"
         do
-            if [ ! -f "${REPOLIST}" ]
-            then
-                wsh_echo "Repository list '${REPOLIST}' does not exit.";
-                help 22;
-            fi
+            test -f "${REPOLIST}" || wsh_exit 22 "Repository list '${REPOLIST}' does not exit.";
 
             REPOLIST_ROOT="$(realpath "$(dirname "${REPOLIST}")")/"
             cd "${WSH_WORKSPACE_ROOT}"
@@ -649,8 +647,7 @@ check_workspace()
             scrape|add|init)
                 touch "${WSH_REPOLIST}";;
             *)
-                wsh_echo "'${WSH_REPOLIST}' is not a repository list"
-                exit 23;;
+                wsh_exit 23 "'${WSH_REPOLIST}' is not a repository list";;
         esac
     fi
     WSH_REPOLIST=$(realpath "${WSH_REPOLIST}")
@@ -839,26 +836,25 @@ repos_gojq_merge()
 execute_merge()
 {
     SECOND_FILE=$1
-    if [ -s "${SECOND_FILE}" ] && [ ! "${WSH_REPOLIST}" -ef "${SECOND_FILE}" ]
+    if [ ! -s "${SECOND_FILE}" ] || [ "${WSH_REPOLIST}" -ef "${SECOND_FILE}" ]
     then
-        if [ -s "${WSH_REPOLIST}" ]
-        then
-            case "${WSH_COMMAND_POLICY}" in
-                keep|default)
-                    FIRST_FILE="${WSH_BACKUP_FILE}";;
-                replace)
-                    FIRST_FILE="${SECOND_FILE}"
-                    SECOND_FILE="${WSH_BACKUP_FILE}";;
-                *)
-                    help 11;;
-            esac
-            backup
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${FIRST_FILE}" "${SECOND_FILE}" > "${WSH_REPOLIST}"
-        else
-            cp "${SECOND_FILE}" "${WSH_REPOLIST}"
-        fi
-    else
         help 10;
+    fi
+    if [ -s "${WSH_REPOLIST}" ]
+    then
+        case "${WSH_COMMAND_POLICY}" in
+            keep|default)
+                FIRST_FILE="${WSH_BACKUP_FILE}";;
+            replace)
+                FIRST_FILE="${SECOND_FILE}"
+                SECOND_FILE="${WSH_BACKUP_FILE}";;
+            *)
+                help 11;;
+        esac
+        backup
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_merge" "${FIRST_FILE}" "${SECOND_FILE}" > "${WSH_REPOLIST}"
+    else
+        cp "${SECOND_FILE}" "${WSH_REPOLIST}"
     fi
 }
 
@@ -1041,7 +1037,7 @@ set_version()
         *) TYPE=ALL;;
     esac
 
-    UPDATED=false
+    UPDATED=NO
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
         while read -r NAME REPO VERSION;
@@ -1067,22 +1063,23 @@ set_version()
             then
                 continue;
             fi;
-            UPDATED=true;
+            UPDATED=YES;
             if [ "${VERSION}" != "${TARGET_VERSION}" ];
             then
                 wsh_echo "${NAME}: changing '${VERSION}' to '${TARGET_VERSION}'";
                 execute_add "${SOURCE_TYPE}" "${NAME}" "${REPO}" "${TARGET_VERSION}";
             fi;
-            if [ "${TYPE}" != "ALL" ];
-            then
-                exit;
-            fi;
+            test "${TYPE}" == "ALL" || exit 0;
         done < <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < "${WSH_REPOLIST}")
     done
-    if [ "${UPDATED}" = "false" ]
-    then
-        exit 61;
-    fi
+
+    test "${UPDATED}" = "YES" || wsh_exit 61 "Nothing to update."
+}
+
+discover_lists()
+{
+    DISCOVER_PATH=$(realpath "$1");
+    readarray -t WSH_REPOLISTS <<< "$(find "${DISCOVER_PATH}" "$@" -iname "*.${WSH_WORKSPACE_TYPE}" | sort)";
 }
 
 
@@ -1098,10 +1095,7 @@ snap_install()
 
 wsh_download()
 {
-    if ! command -v "wget" > /dev/null
-    then
-        apt_install wget 1>&2
-    fi
+    command -v "wget" > /dev/null || apt_install wget 1>&2
     wget -O - "$@"
 }
 
@@ -1129,11 +1123,9 @@ do
         -v|--version)
             if [ -n "${WSH_VERSION}" ]
             then
-                wsh_echo "wshandler version: ${WSH_VERSION}"
-                exit
+                wsh_exit 0 "wshandler version: ${WSH_VERSION}"
             else
-                wsh_echo "wshandler version is unknown"
-                exit 50
+                wsh_exit 50 "wshandler version is unknown"
             fi;;
 
         -y|--yaml_tool)     WSH_YAML_TOOL="$2";     shift; shift;;
@@ -1151,24 +1143,14 @@ do
         -q|--quiet)         WSH_QUIET="YES";        shift;;
 
         -l|--list)
-            if [ "${WSH_REPOLIST_SOURCE}" = "-L" ]
-            then
-                wsh_echo "-l and -L are incompatible.";
-                exit 6
-            fi
+            test "${WSH_REPOLIST_SOURCE}" != "-L" || wsh_exit 7 "Arguments -l and -L are incompatible.";
             WSH_REPOLIST_SOURCE="-l";
             WSH_REPOLISTS+=("$2");
             shift; shift;;
         -L|--list-discover)
-            if [ "${WSH_REPOLIST_SOURCE}" = "-l" ]
-            then
-                wsh_echo "-l and -L are incompatible.";
-                exit 6
-            fi
+            test "${WSH_REPOLIST_SOURCE}" != "-l" || wsh_exit 7 "Arguments -l and -L are incompatible.";
             WSH_REPOLIST_SOURCE="-L";
-            DISCOVER_PATH=${WSH_WORKSPACE_ROOT:-"./"};
-            readarray -t WSH_REPOLISTS <<< "$(find "${DISCOVER_PATH}" -iname "*.${WSH_WORKSPACE_TYPE}" | sort)";
-            echo "${WSH_REPOLISTS[@]}"
+            discover_lists "${WSH_WORKSPACE_ROOT:-"./"}";
             shift;;
 
         clone|init)
@@ -1191,6 +1173,7 @@ do
             exit;;
 
         is_source_space)
+            WSH_QUIET=YES
             check_workspace "is_source_space"
             exit;;
 
@@ -1260,8 +1243,7 @@ do
                                 chmod +x "${BIN_PATH}/yq"
                                 ;;
                             *)
-                                wsh_echo "Unsupported installation policy.";
-                                exit 4;;
+                                wsh_exit 4 "Unsupported installation policy.";;
                         esac;;
                     gojq)
                         case "${WSH_COMMAND_POLICY}" in
@@ -1269,12 +1251,10 @@ do
                                 apt_install gojq
                                 ;;
                             *)
-                                wsh_echo "Unsupported installation policy.";
-                                exit 5;;
+                                wsh_exit 5 "Unsupported installation policy.";;
                         esac;;
                     auto)
-                        wsh_echo "Automatic yaml tool detection is not supported for this command.";
-                        exit 5;;
+                        wsh_exit 6 "Automatic yaml tool detection is not supported for this command.";;
                 esac
             fi
             exit;;
