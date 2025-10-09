@@ -120,6 +120,11 @@ test_init:
 	rm -rf tests/init_${TYPE} tests/init_${TYPE}_nolfs
 	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE} -p shallow init git https://github.com/asherikov/staticoma.git
 	${WSHANDLER} -t ${TYPE} --root tests/init_${TYPE}_nolfs -p shallow,nolfs init git https://github.com/asherikov/staticoma.git
+	rm -rf tests/init_${TYPE}/ && mkdir tests/init_${TYPE}/
+	touch tests/init_${TYPE}/.${TYPE}
+	cd tests/init_${TYPE}/ && git clone --depth 1 https://github.com/asherikov/staticoma.git
+	${WSHANDLER} -t ${TYPE} -r tests/init_${TYPE} -p add scrape
+	! grep "init_${TYPE}" tests/init_${TYPE}/.${TYPE}
 
 test_set_version:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url https://github.com/asherikov/qpmad.git master

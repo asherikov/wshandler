@@ -171,8 +171,8 @@ git_scrape()
     for REPO_DIR in ${UNKNOWN_REPO_DIRS}
     do
         wsh_echo "Processing ${REPO_DIR}"
-        REPO_DIR="${SCRAPE_ROOT}/${REPO_DIR}"
-        pushd "${REPO_DIR}" > /dev/null
+        ABSOLUTE_REPO_DIR="${SCRAPE_ROOT}/${REPO_DIR}"
+        pushd "${ABSOLUTE_REPO_DIR}" > /dev/null
         REPO_URL=$(git remote get-url origin | tr -d '\n' || true)
 
         if [ "${REPO_URL}" == "" ]
@@ -209,7 +209,7 @@ git_scrape()
 
         case ${ACTION} in
             add)    execute_add git "${REPO_DIR}" "${REPO_URL}" "${REPO_VERSION}";;
-            clean)  rm -rf "${REPO_DIR}";;
+            clean)  rm -rf "${ABSOLUTE_REPO_DIR}";;
         esac
 
         ACTION=""
