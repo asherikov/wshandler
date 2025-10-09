@@ -5,8 +5,12 @@ Introduction
 <https://github.com/dirk-thomas/vcstool> (now
 <https://github.com/ros-infrastructure/vcs2l>),
 <https://github.com/ErickKramer/ripvcs/>, and discontinued
-<https://github.com/vcstools/wstool>. A workspace is a directory containing a
-set of packages (typically git repositories) under development, see
+<https://github.com/vcstools/wstool>. It is also conceptually similar to
+<https://github.com/jacebrowning/gitman>, which comes from a different
+(non-ROS) background.
+
+A workspace is a directory containing a set of packages (typically git
+repositories) under development, see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
 or <http://wiki.ros.org/catkin/workspaces> for more information.
 
