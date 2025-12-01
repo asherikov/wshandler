@@ -10,7 +10,7 @@ Introduction
 (non-ROS) background.
 
 A workspace is a directory containing a set of packages (typically git
-repositories) under development, see
+repositories), see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
 or <http://wiki.ros.org/catkin/workspaces> for more information.
 
@@ -23,11 +23,12 @@ Key features:
 - currently supported package sources: `git`;
 - supported repository list formats: `repos` (default) and `rosinstall`
   (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>);
-- repository entries can be tagged for selective updates and status
-  information, e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for
-  examples;
-- experimental sparse checkouts for extries that contain `wshandler: {sparse:
-  [<path>]}`, see `./tests/sparse` for examples.
+- custom repository list extensions:
+    - repository entries can be tagged for selective updates and status
+      information, e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for
+      examples;
+    - experimental sparse checkouts for entries that contain `wshandler:
+      {sparse: [<path>]}`, see `./tests/sparse` for examples.
 
 
 Installation
@@ -47,102 +48,105 @@ Usage
 =====
 
 ```
-WSH: Usage (default values are shown in curly braces):
-WSH:   wshandler [<COMMON_ARGS>] [<COMMAND_ARGS>] <COMMAND> <COMMAND_ARGS>
-WSH:
-WSH: Notation:
-WSH:   <REQUIRED ARGUMENT>
-WSH:   {DEFAULT VALUE}
-WSH:   [OPTIONAL ARGUMENT]
-WSH:   (VALID OPTIONS IN A LIST)
-WSH:
-WSH: Common arguments:
-WSH:   -y|--yaml_tool auto|gojq|yq    {auto}               # Use gojq or yq, auto prefers gojq
-WSH:   -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # Override yaml tool (yq/gojq) path
-WSH:   -r|--root <WORKSPACE_ROOT>     {./}                 # Parent of --list if it is a path
-WSH:   -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # Temporary files created here
-WSH:   -t|--type rosinstall|repos     {repos}              # Repository list format
-WSH:   -i|--indent 1|2|3...           {4}                  # Default indentation in yaml repository list
-WSH:   -k|--keep-going                {false}              # Do not stop on errors
-WSH:   -l|--list <FILENAME>           {.rosinstall|.repos} # Default depends on --type,
-WSH:                                                       #can be specified multiple times,
-WSH:                                                       #mutually exclusive with -L
-WSH:   -L|--list-discover                                  # Automatically discover lists in the root,
-WSH:                                                       #recursively searches for *.<type> files,
-WSH:                                                       #mutually exclusive with -l,
-WSH:                                                       #should be set after -r and -t.
-WSH:   -T|--tag <TAG>                 {}                   # Filter repositories by tags
-WSH:                                                       #can be specified multiple times
-WSH:   -q|--quiet                                          # Suppress most of the output
-WSH:
-WSH: Repository list commands:
-WSH:   Information:
-WSH:     [-u|--unsorted] status    # show workspace status
-WSH:     is_source_space           # check if a directory is a workspace
-WSH:
-WSH:   Initialization:
-WSH:     Common arguments:
-WSH:       [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)]
-WSH:         default   # plain clone
-WSH:         shallow   # shallow clone
-WSH:         nolfs     # disable git LFS
-WSH:     clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
-WSH:     init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
-WSH:
-WSH:   Modification:
-WSH:     [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>  # process unmanaged repositories
-WSH:       ask         # interactive mode
-WSH:       add         # automaticaly add repositories
-WSH:       show        # show unmanaged repositories
-WSH:       clean       # remove unmanaged repositories
-WSH:     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository
-WSH:     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version
-WSH:     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version
-WSH:     set_version_to_hash                                       # set all repository versions to hash
-WSH:     [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch
-WSH:       active      # switch if the given branch is checked out
-WSH:     remove <PACKAGE_NAME> ...                                 # remove repository from a list
-WSH:     remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]               # remove repository from a list
-WSH:     [-p|--policy {keep}|replace] merge <LIST_FILENAME>        # merge repository list
-WSH:       keep        # keep original entries when there is a collision
-WSH:       replace     # replace entries when there is a collision
-WSH:
-WSH: Repository commands:
-WSH:   Selective commands (<PACKAGE_NAME> may be a pattern):
-WSH:     Common parameters:
-WSH:       [-j|--jobs <NUM_THREADS> {1}]   # use multiple jobs if possible
-WSH:     clean [<PACKAGE_NAME> ...]        # remove repository
-WSH:     prune [<PACKAGE_NAME> ...]        # git prune
-WSH:     push [<PACKAGE_NAME> ...]         # git push
-WSH:     unshallow [<PACKAGE_NAME> ...]    # git unshallow
-WSH:     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
-WSH:       default      # plain clone
-WSH:       shallow      # shallow clone
-WSH:       nolfs        # disable git LFS
-WSH:       rebase       # do git pull with rebase
-WSH:       unmodified   # only unmodified repos
-WSH:       nosubmodules # do not checkout submodules
-WSH:
-WSH:   Generic commands:
-WSH:     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
-WSH:
-WSH:   Branching commands:
-WSH:     branch show ['<GREP_PATTERN>']                    # show matching branches
-WSH:     branch new <BRANCH_NAME>                          # create a new branch in modified repositories
-WSH:     branch allnew <BRANCH_NAME>                       # create a new branch in all repositories
-WSH:     branch delete <BRANCH_NAME>                       # delete branch from all repositories
-WSH:     branch merge <BRANCH_NAME> <TARGET_BRANCH {main}> # merge brach
-WSH:     commit '<MESSAGE>'                                # commit to modified repositories
-WSH:
-WSH: wshandler installation commands:
-WSH:   install_test_deps                                                           # install test dependeincies
-WSH:   [-p|--policy {skip_yaml_tool}|snap|download|apt] install <BIN_PATH {~/bin}> # install wshandler
-WSH:       skip_yaml_tool  # do not install yaml tool
-WSH:       snap            # install yaml tool (jq) using snap
-WSH:       download        # download yaml tool (jq)
-WSH:       apt             # install yaml tool (gojq) using apt
-WSH:   upgrade <BIN_PATH {~/bin}>              # upgrade wshandler
-WSH:   upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage
+Usage (default values are shown in curly braces):
+  wshandler [<COMMON_ARGS>] [<COMMAND_ARGS>] <COMMAND> <COMMAND_ARGS>
+
+Notation:
+  <REQUIRED ARGUMENT>
+  {DEFAULT VALUE}
+  [OPTIONAL ARGUMENT]
+  (VALID OPTIONS IN A LIST)
+
+Common arguments:
+  -y|--yaml_tool auto|gojq|yq    {auto}               # Use gojq or yq, auto prefers gojq
+  -Y|--yaml_binary <BINARY_PATH> {yq|gojq}            # Override yaml tool (yq/gojq) path
+  -r|--root <WORKSPACE_ROOT>     {./}                 # Parent of --list if it is a path
+  -c|--cache <CACHE_DIR>         {<WORKSPACE_ROOT>}   # Temporary files created here
+  -t|--type rosinstall|repos     {repos}              # Repository list format
+  -i|--indent 1|2|3...           {4}                  # Default indentation in yaml repository list
+  -k|--keep-going                {false}              # Do not stop on errors
+  -l|--list <FILENAME>           {.rosinstall|.repos} # Default depends on --type,
+                                                      #can be specified multiple times,
+                                                      #mutually exclusive with -L
+  -L|--list-discover                                  # Automatically discover lists in the root,
+                                                      #recursively searches for *.<type> files,
+                                                      #mutually exclusive with -l,
+                                                      #should be set after -r and -t.
+  -T|--tag <TAG>                 {}                   # Filter repositories by tags
+                                                      #can be specified multiple times
+  -q|--quiet                                          # Suppress most of the output
+
+Repository list commands:
+  Information:
+    [-u|--unsorted] status    # show workspace status
+    is_source_space           # check if a directory is a workspace
+
+  Initialization:
+    Common arguments:
+      [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs)]
+        default   # plain clone
+        shallow   # shallow clone
+        nolfs     # disable git LFS
+    clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
+    init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
+
+  Modification:
+    [-p|--policy {ask}|add|show|clean] scrape <DIRECTORY {<WORKSPACE_ROOT>}>  # process unmanaged repositories
+      ask         # interactive mode
+      add         # automaticaly add repositories
+      show        # show unmanaged repositories
+      clean       # remove unmanaged repositories
+    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository
+    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version
+    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version
+    set_version_to_hash                                       # set all repository versions to hash
+    pin                                                       # alias for set_version_to_hash
+    [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch
+      active      # switch if the given branch is checked out
+    remove <PACKAGE_NAME> ...                                 # remove repository from a list
+    remove_by_url <PACKAGE_URL> [<PACKAGE_URL>]               # remove repository from a list
+    [-p|--policy {keep}|replace] merge <LIST_FILENAME>        # merge repository list
+      keep        # keep original entries when there is a collision
+      replace     # replace entries when there is a collision
+
+Repository commands:
+  Selective commands (<PACKAGE_NAME> may be a pattern):
+    Common arguments:
+      [-j|--jobs <NUM_THREADS> {1}]   # use multiple jobs if possible
+      [-U|--unmanaged]                # work on unmanaged repository directories: directory names must be given
+                                      #instead of package names, at least one is required, ignores --jobs
+    clean [<PACKAGE_NAME> ...]        # remove repository
+    prune [<PACKAGE_NAME> ...]        # git prune
+    push [<PACKAGE_NAME> ...]         # git push
+    unshallow [<PACKAGE_NAME> ...]    # git unshallow
+    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
+      default      # plain clone
+      shallow      # shallow clone
+      nolfs        # disable git LFS
+      rebase       # do git pull with rebase
+      unmodified   # only unmodified repos
+      nosubmodules # do not checkout submodules
+
+  Generic commands:
+    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
+
+  Branching commands:
+    branch show ['<GREP_PATTERN>']                    # show matching branches
+    branch new <BRANCH_NAME>                          # create a new branch in modified repositories
+    branch allnew <BRANCH_NAME>                       # create a new branch in all repositories
+    branch delete <BRANCH_NAME>                       # delete branch from all repositories
+    branch merge <BRANCH_NAME> <TARGET_BRANCH {main}> # merge brach
+    commit '<MESSAGE>'                                # commit to modified repositories
+
+wshandler installation commands:
+  install_test_deps                                                           # install test dependeincies
+  [-p|--policy {skip_yaml_tool}|snap|download|apt] install <BIN_PATH {~/bin}> # install wshandler
+      skip_yaml_tool  # do not install yaml tool
+      snap            # install yaml tool (jq) using snap
+      download        # download yaml tool (jq)
+      apt             # install yaml tool (gojq) using apt
+  upgrade <BIN_PATH {~/bin}>              # upgrade wshandler
+  upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage
 ```
 
 Examples
