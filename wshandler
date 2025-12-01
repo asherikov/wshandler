@@ -74,6 +74,7 @@ help()
     wsh_echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version"
     wsh_echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version"
     wsh_echo "    set_version_to_hash                                       # set all repository versions to hash"
+    wsh_echo "    pin                                                       # alias for set_version_to_hash"
     wsh_echo "    [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch"
     wsh_echo "      active      # switch if the given branch is checked out"
     wsh_echo "    remove <PACKAGE_NAME> ...                                 # remove repository from a list"
@@ -1084,7 +1085,7 @@ set_version()
             then
                 cd "${WSH_WORKSPACE_ROOT:?}/${NAME}";
                 case $1 in
-                    set_version_to_hash) TARGET_VERSION="$("dir_${SOURCE_TYPE}_get_hash")";;
+                    set_version_to_hash|pin) TARGET_VERSION="$("dir_${SOURCE_TYPE}_get_hash")";;
                     set_version_to_branch)
                         case "${WSH_COMMAND_POLICY}" in
                             default|active)
@@ -1245,7 +1246,7 @@ do
             done
             exit;;
 
-        set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch)
+        set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch|pin)
             check_workspace "$1"
             set_version "${@}"
             exit;;
