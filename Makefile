@@ -7,6 +7,7 @@ test: shellcheck
 	@${MAKE} test_type TYPE=repos
 	@${MAKE} wrap_test TEST=test_root_git
 	@${MAKE} wrap_test TEST=test_clone_ws
+	@${MAKE} wrap_test TEST=test_unmanaged
 
 test_clone_ws:
 	rm -rf tests/clone
@@ -47,7 +48,7 @@ test_update:
 	touch tests/update/staticoma/x
 	${WSHANDLER} -t ${TYPE} --policy unmodified -r tests/update/ --jobs 2 update | grep "Skipping modified"
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean staticoma
-	! test -d tests/update/staticoma
+	test ! -d tests/update/staticoma
 	test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,nosubmodules update
@@ -65,9 +66,11 @@ test_update:
 	${WSHANDLER} -t ${TYPE} --list tests/update/.${TYPE} status
 	test -d tests/update/staticoma_commit
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean "staticoma.*"
-	! test -d tests/update/staticoma
-	! test -d tests/update/staticoma_commit
+	test ! -d tests/update/staticoma
+	test ! -d tests/update/staticoma_commit
 	test -d tests/update/catkin
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean catkin/
+	test ! -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,rebase,nolfs update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
@@ -95,9 +98,9 @@ test_scrape:
 	${WSHANDLER} -t ${TYPE} -r tests/scrape status
 	rm tests/scrape/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/scrape --policy clean scrape
-	! test -s tests/scrape/.${TYPE}
-	! test -d tests/scrape/staticoma
-	! test -d tests/scrape/test/qpmad
+	test ! -s tests/scrape/.${TYPE}
+	test ! -d tests/scrape/staticoma
+	test ! -d tests/scrape/test/qpmad
 
 test_merge:
 	rm -rf tests/merge
@@ -195,6 +198,16 @@ test_root_git:
 	touch tests/root_git/.rosinstall
 	cd tests/root_git; git init
 	${WSHANDLER} --root tests/root_git -p shallow,nosubmodules update
+
+test_unmanaged:
+	rm -rf tests/unmanaged/
+	mkdir -p tests/unmanaged/
+	cd tests/unmanaged/ && git clone --depth 1 https://github.com/asherikov/staticoma.git
+	${WSHANDLER} --unmanaged prune tests/unmanaged/staticoma
+	${WSHANDLER} -U unshallow tests/unmanaged/staticoma
+	${WSHANDLER} -U update tests/unmanaged/staticoma
+	${WSHANDLER} -U clean tests/unmanaged/staticoma
+	test ! -d tests/unmanaged/staticoma
 
 shellcheck:
 	shellcheck wshandler
