@@ -56,6 +56,7 @@ test_update:
 	test ! -f tests/update/qpmad_tag/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./ is_source_space
+	! ${WSHANDLER} -t ${TYPE} -r ./nonexistent is_source_space
 	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow staticoma
 	${WSHANDLER} -t ${TYPE} -r tests/update/ unshallow
 	${WSHANDLER} -t ${TYPE} -r tests/update/ prune staticoma
