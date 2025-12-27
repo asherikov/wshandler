@@ -108,11 +108,11 @@ test_merge:
 	mkdir -p tests/merge
 	touch tests/merge/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/merge merge tests/merge_a/.${TYPE}
-	${WSHANDLER} -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge status | grep staticoma1.git > /dev/null
 	${WSHANDLER} -t ${TYPE} -r tests/merge merge tests/merge_b/.${TYPE}
-	${WSHANDLER} -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge status | grep staticoma1.git > /dev/null
 	${WSHANDLER} -t ${TYPE} -r tests/merge -p replace merge tests/merge_b/.${TYPE}
-	${WSHANDLER} -t ${TYPE} -r tests/merge status
+	${WSHANDLER} -t ${TYPE} -r tests/merge status | grep staticoma.git > /dev/null
 
 test_remove:
 	rm -Rf tests/remove

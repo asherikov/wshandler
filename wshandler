@@ -850,7 +850,7 @@ repos_yq_merge()
 
 repos_gojq_merge()
 {
-    "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[0] * .[1]' "$1" "$2"
+    "${WSH_YAML_CMD[@]}" --slurp --yaml-output '.[1] * .[0]' "$1" "$2"
 }
 
 
