@@ -112,13 +112,15 @@ Repository list commands:
 Repository commands:
   Selective commands (<PACKAGE_NAME> may be a pattern):
     Common arguments:
-      [-j|--jobs <NUM_THREADS> {1}]   # use multiple jobs if possible
-      [-U|--unmanaged]                # work on unmanaged repository directories: directory names must be given
-                                      #instead of package names, at least one is required, ignores --jobs
-    clean [<PACKAGE_NAME> ...]        # remove repository
-    prune [<PACKAGE_NAME> ...]        # git prune
-    push [<PACKAGE_NAME> ...]         # git push
-    unshallow [<PACKAGE_NAME> ...]    # git unshallow
+      [-j|--jobs <NUM_THREADS> {1}]       # use multiple jobs if possible
+      [-U|--unmanaged]                    # work on unmanaged repository directories: directory names must
+                                          #be given instead of package names, at least one is required,
+                                          #ignores --jobs
+    clean [<PACKAGE_NAME> ...]            # remove repository
+    prune [<PACKAGE_NAME> ...]            # git prune
+    push [<PACKAGE_NAME> ...]             # git push
+    unshallow [<PACKAGE_NAME> ...]        # git unshallow
+    feature_branches [<PACKAGE_NAME> ...] # list git feature branches
     [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
       default      # plain clone
       shallow      # shallow clone

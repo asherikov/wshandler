@@ -41,6 +41,8 @@ test_update:
 	test -d tests/update/staticoma
 	test ! -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 update
+	${WSHANDLER} -t ${TYPE} -r tests/update/ feature_branches "staticoma.*"
+	${WSHANDLER} -t ${TYPE} -r tests/update/ feature_branches
 	# test submodule
 	test -f tests/update/qpmad_tag/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
@@ -207,6 +209,7 @@ test_unmanaged:
 	${WSHANDLER} --unmanaged prune tests/unmanaged/staticoma
 	${WSHANDLER} -U unshallow tests/unmanaged/staticoma
 	${WSHANDLER} -U update tests/unmanaged/staticoma
+	${WSHANDLER} -U feature_branches tests/unmanaged/staticoma
 	${WSHANDLER} -U clean tests/unmanaged/staticoma
 	test ! -d tests/unmanaged/staticoma
 
