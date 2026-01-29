@@ -1,0 +1,5 @@
+repositories:
+    qpmad:
+        type: git
+        url: https://github.com/asherikov/qpmad.git
+        version: does_not_exist

@@ -4,7 +4,6 @@
 
 set -Ee
 set -o pipefail
-trap 'wsh_echo "Failed \"${BASH_COMMAND}\" at line ${LINENO} with $?" >&2 && kill 0' ERR
 
 WSH_VERSION=
 
@@ -857,7 +856,7 @@ rosinstall_yq_sparse()
 
 rosinstall_gojq_sparse()
 {
-    "${WSH_YAML_CMD[@]}" --raw-output ".[] | select(.[].\"local-name\" == \"$1\") | .git.wshandler.sparse" "$2" 2> /dev/null || return 0
+    "${WSH_YAML_CMD[@]}" --raw-output ".[] | select(.[].\"local-name\" == \"$1\") | .git.wshandler.sparse[]" "$2" 2> /dev/null || return 0
 }
 
 repos_yq_sparse()
@@ -1265,7 +1264,12 @@ do
 
         dir_*_update|dir_run)
             initialize_yaml_tool
-            "$1" "${@:2}" || test -n "${WSH_KEEP_GOING}"
+            if [ -n "${WSH_KEEP_GOING}" ]
+            then
+                "$1" "${@:2}" || true
+            else
+                "$1" "${@:2}"
+            fi
             exit;;
 
         dir_*)

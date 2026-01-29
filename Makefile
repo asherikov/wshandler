@@ -81,6 +81,7 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy rebase update
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
+	! ${WSHANDLER} -t ${TYPE} --root tests/update_nonexistent/ -p shallow update
 
 test_scrape:
 	rm -rf tests/scrape
