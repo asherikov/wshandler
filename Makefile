@@ -82,6 +82,10 @@ test_update:
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
 	! ${WSHANDLER} -t ${TYPE} --root tests/update_nonexistent/ -p shallow update
+	mkdir -p tests/update_new_repo/repo
+	cd tests/update_new_repo/repo/ && git init
+	${WSHANDLER} -t ${TYPE} -r tests/update_new_repo --policy add scrape
+	${WSHANDLER} -t ${TYPE} --root tests/update_new_repo -p shallow update
 
 test_scrape:
 	rm -rf tests/scrape
