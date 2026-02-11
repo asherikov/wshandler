@@ -45,7 +45,13 @@ test_update:
 	${WSHANDLER} -t ${TYPE} -r tests/update/ feature_branches
 	# test submodule
 	test -f tests/update/qpmad_tag/doc/gh-pages/index.html
+	test -f tests/update/qpmad_commit/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status
+	# policy: origin
+	cd tests/update/staticoma && git remote set-url origin https://github.com/asherikov/nonexistent.git
+	! ${WSHANDLER} -t ${TYPE} -r tests/update/ update staticoma
+	${WSHANDLER} -t ${TYPE} -r tests/update/ --policy origin update staticoma
+	# policy: unmodified
 	test -d tests/update/staticoma
 	touch tests/update/staticoma/x
 	${WSHANDLER} -t ${TYPE} --policy unmodified -r tests/update/ --jobs 2 update | grep "Skipping modified"
@@ -53,9 +59,11 @@ test_update:
 	test ! -d tests/update/staticoma
 	test -d tests/update/catkin
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -j 2 clean
+	# policy: shallow,nosubmodules
 	${WSHANDLER} -t ${TYPE} -r tests/update/ --jobs 2 --policy shallow,nosubmodules update
 	# test that submodule is missing
 	test ! -f tests/update/qpmad_tag/doc/gh-pages/index.html
+	test ! -f tests/update/qpmad_commit/doc/gh-pages/index.html
 	${WSHANDLER} -t ${TYPE} -r tests/update/ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./ is_source_space
 	! ${WSHANDLER} -t ${TYPE} -r ./nonexistent is_source_space

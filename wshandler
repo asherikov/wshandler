@@ -95,13 +95,14 @@ help()
     wsh_echo "    push [<PACKAGE_NAME> ...]             # git push"
     wsh_echo "    unshallow [<PACKAGE_NAME> ...]        # git unshallow"
     wsh_echo "    feature_branches [<PACKAGE_NAME> ...] # list git feature branches"
-    wsh_echo "    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull"
+    wsh_echo "    [-p|--policy <POLICY1[,POLICY2]> update [<PACKAGE_NAME> ...] # git pull"
     wsh_echo "      default      # plain clone"
     wsh_echo "      shallow      # shallow clone"
     wsh_echo "      nolfs        # disable git LFS"
     wsh_echo "      rebase       # do git pull with rebase"
     wsh_echo "      unmodified   # only unmodified repos"
     wsh_echo "      nosubmodules # do not checkout submodules"
+    wsh_echo "      origin       # check origin URL matches list, remove and reclone if mismatch"
     wsh_echo ""
     wsh_echo "  Generic commands:"
     wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository"
@@ -385,6 +386,7 @@ dir_git_update()
             nosubmodules) SUBMODULES=NO;;
             nolfs)        GIT+=("GIT_LFS_SKIP_SMUDGE=1");;
             rebase)       PULL_ARGS+=(--rebase);;
+            origin)       ORIGIN=YES;;
         esac
     done
     GIT+=("git")
@@ -406,6 +408,19 @@ dir_git_update()
         rm -rf "${REPO_DIR:?}/*"
         git_clone "${SPARSE}" "${REPO_URL}" "${REPO_VERSION}" "./"
         CLONED=YES
+    else
+        # Check if origin policy is enabled and if URL matches
+        if [ "${ORIGIN}" = "YES" ]
+        then
+            CURRENT_ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+            if [ "${CURRENT_ORIGIN_URL}" != "${REPO_URL}" ]
+            then
+                wsh_echo "Origin URL mismatch for '$1': expected '${REPO_URL}', got '${CURRENT_ORIGIN_URL}'"
+                find ./ -maxdepth 1 -mindepth 1 -exec rm -rf {} \;
+                git_clone "${SPARSE}" "${REPO_URL}" "${REPO_VERSION}" "./"
+                CLONED=YES
+            fi
+        fi
     fi
 
     if [ "${CLONED}" != "YES" ] || [ "${SPARSE}" = "YES" ]

@@ -121,13 +121,14 @@ Repository commands:
     push [<PACKAGE_NAME> ...]             # git push
     unshallow [<PACKAGE_NAME> ...]        # git unshallow
     feature_branches [<PACKAGE_NAME> ...] # list git feature branches
-    [-p|--policy <POLICY1[,POLICY2]> ({default}|shallow|nolfs|rebase)] update [<PACKAGE_NAME> ...] # git pull
+    [-p|--policy <POLICY1[,POLICY2]>] update [<PACKAGE_NAME> ...] # git pull
       default      # plain clone
       shallow      # shallow clone
       nolfs        # disable git LFS
       rebase       # do git pull with rebase
       unmodified   # only unmodified repos
       nosubmodules # do not checkout submodules
+      origin       # check origin URL matches list, remove and reclone if mismatch
 
   Generic commands:
     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
