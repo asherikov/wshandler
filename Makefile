@@ -24,6 +24,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_multilist
 	@${MAKE} wrap_test TEST=test_tags
 	@${MAKE} wrap_test TEST=test_sparse
+	@${MAKE} wrap_test TEST=test_env_subst
 
 wrap_test:
 	@echo ""
@@ -225,6 +226,10 @@ test_unmanaged:
 	${WSHANDLER} -U feature_branches tests/unmanaged/staticoma
 	${WSHANDLER} -U clean tests/unmanaged/staticoma
 	test ! -d tests/unmanaged/staticoma
+
+test_env_subst:
+	WSH_TEST_GIT_HOST=https://github.com ${WSHANDLER} -t ${TYPE} --root tests/env_subst/ -e status | grep "https://github.com/asherikov/staticoma.git"
+	! WSH_TEST_GIT_HOST=https://github.com ${WSHANDLER} -t ${TYPE} --root tests/env_subst/ status 2>&1 | grep "https://github.com/asherikov/staticoma.git"
 
 shellcheck:
 	shellcheck wshandler

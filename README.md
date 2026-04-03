@@ -74,6 +74,9 @@ Common arguments:
                                                       #should be set after -r and -t.
   -T|--tag <TAG>                 {}                   # Filter repositories by tags
                                                       #can be specified multiple times
+  -e|--env-subst                                      # Perform environment variable substitution
+                                                      #in repository lists (disabled by default),
+                                                      #gettext envsubst has to be installed
   -q|--quiet                                          # Suppress most of the output
 
 Repository list commands:

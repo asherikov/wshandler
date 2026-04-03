@@ -1,0 +1,9 @@
+repositories:
+    staticoma:
+        type: git
+        url: ${WSH_TEST_GIT_HOST}/asherikov/staticoma.git
+        version: master
+    qpmad:
+        type: git
+        url: ${WSH_TEST_GIT_HOST}/asherikov/qpmad.git
+        version: 1.3.0

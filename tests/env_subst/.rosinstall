@@ -1,0 +1,8 @@
+- git:
+    local-name: staticoma
+    uri: ${WSH_TEST_GIT_HOST}/asherikov/staticoma.git
+    version: master
+- git:
+    local-name: qpmad
+    uri: ${WSH_TEST_GIT_HOST}/asherikov/qpmad.git
+    version: 1.3.0
