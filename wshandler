@@ -540,12 +540,15 @@ status()
         FORMAT_STRING+="%-${MAX_LEN}.${MAX_LEN}s"
     done
 
+    IFS=$'\n' readarray -t ROWS <<< "${DATA}"
+
     if [ "${WSH_QUIET}" = "NO" ]
     then
         echo "Flags: H - version hash mismatch, M - uncommited changes"
+        # 2 -- the number of rows in the table header
+        echo "Total repositories: $((${#ROWS[@]} - 2))"
     fi
 
-    IFS=$'\n' readarray -t ROWS <<< "${DATA}"
     for ROW in "${ROWS[@]}"
     do
         IFS='|' read -ra COLS <<< "${ROW}"
@@ -556,8 +559,6 @@ status()
 
     if [ "${WSH_QUIET}" = "NO" ]
     then
-        echo
-
         WSH_COMMAND_POLICY=show
         scrape "${SOURCE_TYPE}" "${WSH_WORKSPACE_ROOT}"
     fi
