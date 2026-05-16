@@ -25,6 +25,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_tags
 	@${MAKE} wrap_test TEST=test_sparse
 	@${MAKE} wrap_test TEST=test_env_subst
+	@${MAKE} wrap_test TEST=test_prefer_version
 
 wrap_test:
 	@echo ""
@@ -230,6 +231,20 @@ test_unmanaged:
 test_env_subst:
 	WSH_TEST_GIT_HOST=https://github.com ${WSHANDLER} -t ${TYPE} --root tests/env_subst/ -e status | grep "https://github.com/asherikov/staticoma.git"
 	! WSH_TEST_GIT_HOST=https://github.com ${WSHANDLER} -t ${TYPE} --root tests/env_subst/ status 2>&1 | grep "https://github.com/asherikov/staticoma.git"
+
+test_prefer_version:
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
+	# prefer a nonexistent ref: at least one repo must match, should fail
+	! ${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P nonexistent_branch_that_does_not_exist update
+	# prefer an existing tag (1.3.0 exists in qpmad, 1.2.0 exists in staticoma)
+	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P 1.3.0 update
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep 1.3.0
+	# prefer an existing branch (master exists in both repos)
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
+	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P master update
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep master
+	# clean up
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
 
 shellcheck:
 	shellcheck wshandler

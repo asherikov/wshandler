@@ -16,19 +16,28 @@ or <http://wiki.ros.org/catkin/workspaces> for more information.
 
 Key features:
 - `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, i.e.,
-  it is easy to keep track of your local changes with respect to the upstream;
+  it is easy to keep track of your local changes with respect to the upstream.
 - `wshandler` is implemented in `bash` and relies on either `gojq`
   <https://github.com/itchyny/gojq> or `yq` <https://github.com/mikefarah/yq>
-  for yaml processing;
-- currently supported package sources: `git`;
-- supported repository list formats: `repos` (default) and `rosinstall`
-  (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>);
-- custom repository list extensions:
+  for yaml processing.
+- Currently supported package sources: `git`.
+- Supported repository list formats: `repos` (default) and `rosinstall`
+  (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>).
+- Version pinning -- automatically update versions in repository list to
+  current commit hashes. Useful for workspace "releases".
+- Version override: `wshandler` can prefer a specific tag or branch over the
+  versions specified in the repository list using the `-P`/`--prefer-version`
+  flag. At least one repository must match the specified ref, otherwise the
+  command fails. This way feature branches of the same name in different
+  repositories can be tested together.
+- Custom repository list extensions:
     - repository entries can be tagged for selective updates and status
       information, e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for
       examples;
     - experimental sparse checkouts for entries that contain `wshandler:
-      {sparse: [<path>]}`, see `./tests/sparse` for examples.
+      {sparse: [<path>]}`, see `./tests/sparse` for examples;
+    - optional substitution of environment variables into repository list,
+      e.g., this allows swapping of repository URLs between git and http.
 
 
 Installation
@@ -124,14 +133,16 @@ Repository commands:
     push [<PACKAGE_NAME> ...]             # git push
     unshallow [<PACKAGE_NAME> ...]        # git unshallow
     feature_branches [<PACKAGE_NAME> ...] # list git feature branches
-    [-p|--policy <POLICY1[,POLICY2]>] update [<PACKAGE_NAME> ...] # git pull
-      default      # plain clone
-      shallow      # shallow clone
-      nolfs        # disable git LFS
-      rebase       # do git pull with rebase
-      unmodified   # only unmodified repos
-      nosubmodules # do not checkout submodules
-      origin       # check origin URL matches list, remove and reclone if mismatch
+    [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull
+      # policies:
+        default      # plain clone
+        shallow      # shallow clone
+        nolfs        # disable git LFS
+        rebase       # do git pull with rebase
+        unmodified   # only unmodified repos
+        nosubmodules # do not checkout submodules
+        origin       # check origin URL matches list, remove and reclone if mismatch
+      # <REF> -- Prefer specified tag or branch over the version in the repository list
 
   Generic commands:
     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
