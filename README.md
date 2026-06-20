@@ -14,39 +14,87 @@ repositories), see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
 or <http://wiki.ros.org/catkin/workspaces> for more information.
 
-Key features:
-- `wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, i.e.,
-  it is easy to keep track of your local changes with respect to the upstream.
-- `wshandler` is implemented in `bash` and relies on either `gojq`
-  <https://github.com/itchyny/gojq> or `yq` <https://github.com/mikefarah/yq>
-  for yaml processing.
-- Currently supported package sources: `git`.
-- Supported repository list formats: `repos` (default) and `rosinstall`
-  (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>).
-- Version pinning -- automatically update versions in repository list to
-  current commit hashes. Useful for workspace "releases".
-- Version override: `wshandler` can prefer a specific tag or branch over the
-  versions specified in the repository list using the `-P`/`--prefer-version`
-  flag. At least one repository must match the specified ref, otherwise the
-  command fails. This way feature branches of the same name in different
-  repositories can be tested together.
-- Custom repository list extensions:
-    - repository entries can be tagged for selective updates and status
-      information, e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for
-      examples;
-    - experimental sparse checkouts for entries that contain `wshandler:
-      {sparse: [<path>]}`, see `./tests/sparse` for examples;
-    - optional substitution of environment variables into repository list,
-      e.g., this allows swapping of repository URLs between git and http.
+
+Features
+--------
+
+### Stateful workflow
+
+`wshandler` mimics `wstool`'s 'stateful' workflow dropped in `vcstool`, i.e.,
+it is easy to keep track of your local changes with respect to the upstream.
+
+- `wshandler status`
+```
+>>> wshandler status: git sources ---
+Flags: H - version hash mismatch, M - uncommited changes
+name              version  actual version              HM repository
+----              -------  --------------              -- ----------
+ariles            pkg_ws_2 tags/ws-2.3.1-0-ge2748ad4      https://github.com/asherikov/ariles.git
+intrometry        main     tags/0.1.0-0-ga033cd5-dirty  M https://github.com/asherikov/intrometry.git
+thread_supervisor master   tags/1.1.0-0-gbbf8a09          https://github.com/asherikov/thread_supervisor.git
+
+<<< wshandler status: git sources ---
+```
+
+
+### Version pinning (workspace releases)
+
+`wshandler pin` sets repository versions to their current commit hashes allowng
+to freeze workspace in a desired state.
+
+Example workflow: bleeding edge version of workspace in the main branch
+tracking latest versions of repositories and a release workspace branch with
+fixed stable repository versions that is updated when necessary.
+
+
+### Templated repository lists
+
+Repository lists can be changed dynamically based on environment variables:
+`--env-subst` flag forces substitution of environment variables into lists.
+This feature can be used to swap repository URLs (http/git), repository
+branches, etc.
+
+
+### Multi-repo feature branches
+
+Sometimes multiple repositories are modified during development of a particular
+feature and need to be tested together. Provided that the feature branches are
+named consistently you can achieve this with `--prefer-version` flag -- when
+specified it forces `wshandler` to use given version (tag/branch) instead of
+version specified in repository list. At least one repository must match the
+specified ref, otherwise the command fails.
+
+
+### Tagging
+
+Repository entries can be tagged for selective updates and status information,
+e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for examples.
+
+
+### Sparce cehckouts
+
+`wshandler` provides experimental sparse checkout support for entries that
+contain `wshandler: {sparse: [<path>]}`, see `./tests/sparse` for examples.
+
+
+### Supported source types
+
+- Repository list formats:
+    - `repos` (default);
+    - `rosinstall` (<https://docs.ros.org/en/independent/api/rosinstall/html/rosinstall_file_format.html>).
+
+- Repository types:
+    - `git`.
 
 
 Installation
 ============
 
 `wshandler` is a bash script that can be placed anywhere, e.g., your
-`${HOME}/bin`. It requires `bash`, `git` and either `gojq` (default) or `yq` to
-work. `gojq` is available via binary packages on many modern systems, but has
-certain limitations, e.g., it always sorts entries and does not preserve
+`${HOME}/bin`. It requires `bash`, `git` and either `gojq` (default,
+<https://github.com/itchyny/gojq>) or `yq` (<https://github.com/mikefarah/yq>)
+to work. `gojq` is available via binary packages on many modern systems, but
+has certain limitations, e.g., it always sorts entries and does not preserve
 comments. `yq` is not available via debian packages on Ubuntu, but can be
 installed using `snap`. You can also find an AppImage bundle including
 `wshandler` and `yq` at <https://github.com/asherikov/wshandler/releases>
@@ -164,20 +212,4 @@ wshandler installation commands:
       apt             # install yaml tool (gojq) using apt
   upgrade <BIN_PATH {~/bin}>              # upgrade wshandler
   upgrade_appimage <BIN_PATH {~/bin}>     # upgrade wshandler AppImage
-```
-
-Examples
-========
-
-- `wshandler status`
-```
->>> wshandler status: git sources ---
-Flags: H - version hash mismatch, M - uncommited changes
-name              version  actual version              HM repository
-----              -------  --------------              -- ----------
-ariles            pkg_ws_2 tags/ws-2.3.1-0-ge2748ad4      https://github.com/asherikov/ariles.git
-intrometry        main     tags/0.1.0-0-ga033cd5-dirty  M https://github.com/asherikov/intrometry.git
-thread_supervisor master   tags/1.1.0-0-gbbf8a09          https://github.com/asherikov/thread_supervisor.git
-
-<<< wshandler status: git sources ---
 ```
