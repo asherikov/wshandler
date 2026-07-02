@@ -76,8 +76,8 @@ help()
     wsh_echo "    add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository"
     wsh_echo "    set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version"
     wsh_echo "    set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version"
-    wsh_echo "    set_version_to_hash                                       # set all repository versions to hash"
-    wsh_echo "    pin                                                       # alias for set_version_to_hash"
+    wsh_echo "    set_version_to_hash                                       # deprecated, use pin"
+    wsh_echo "    pin                                                       # set versions to tags when available, hash otherwise"
     wsh_echo "    [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch"
     wsh_echo "      active      # switch if the given branch is checked out"
     wsh_echo "    remove <PACKAGE_NAME> ...                                 # remove repository from a list"
@@ -294,6 +294,17 @@ dir_git_uncommitted()
 dir_git_get_hash()
 {
     git rev-parse --verify HEAD
+}
+
+dir_git_get_tag()
+{
+    TAG=$(git tag --points-at HEAD --sort=-version:refname --sort=-creatordate 2>/dev/null | head -n 1)
+    if [ -n "${TAG}" ]
+    then
+        echo "${TAG}"
+    else
+        dir_git_get_hash
+    fi
 }
 
 dir_git_get_branch()
@@ -1155,7 +1166,7 @@ set_version()
             then
                 cd "${WSH_WORKSPACE_ROOT:?}/${NAME}";
                 case $1 in
-                    set_version_to_hash|pin) TARGET_VERSION="$("dir_${SOURCE_TYPE}_get_hash")";;
+                    set_version_to_hash|pin) TARGET_VERSION="$("dir_${SOURCE_TYPE}_get_tag")";;
                     set_version_to_branch)
                         case "${WSH_COMMAND_POLICY}" in
                             default|active)
@@ -1325,6 +1336,7 @@ do
             exit;;
 
         set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch|pin)
+            test "$1" = "set_version_to_hash" && wsh_echo "'set_version_to_hash' is deprecated, use 'pin' instead"
             check_workspace "$1"
             set_version "${@}"
             exit;;

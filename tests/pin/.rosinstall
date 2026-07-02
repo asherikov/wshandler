@@ -1,0 +1,8 @@
+- git:
+    local-name: qpmad
+    uri: https://github.com/asherikov/qpmad.git
+    version: 6a6b5d76c4b8755bb02e312d168b656899b4cf22
+- git:
+    local-name: staticoma
+    uri: https://github.com/asherikov/staticoma.git
+    version: 4c7e4e2128a663b8e269ee000b9665762532d0e6

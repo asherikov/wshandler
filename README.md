@@ -39,8 +39,10 @@ thread_supervisor master   tags/1.1.0-0-gbbf8a09          https://github.com/ash
 
 ### Version pinning (workspace releases)
 
-`wshandler pin` sets repository versions to their current commit hashes allowng
-to freeze workspace in a desired state.
+`wshandler pin` (or its deprecated alias `set_version_to_hash`) sets repository
+versions to tags corresponding to the current commits, falling back to
+commit hashes when no tag is available. This allows freezing workspace in
+a desired state with more readable version references when tags exist.
 
 Example workflow: bleeding edge version of workspace in the main branch
 tracking latest versions of repositories and a release workspace branch with
@@ -159,8 +161,8 @@ Repository list commands:
     add git <PACKAGE_NAME> <PACKAGE_URL> <PACKAGE_VERSION>    # add a repository
     set_version_by_url <PACKAGE_URL> <PACKAGE_VERSION>        # set repository version
     set_version_by_name <PACKAGE_NAME> <PACKAGE_VERSION>      # set repository version
-    set_version_to_hash                                       # set all repository versions to hash
-    pin                                                       # alias for set_version_to_hash
+    set_version_to_hash                                       # deprecated, use pin
+    pin                                                       # set versions to tags when available, hash otherwise
     [-p|--policy <POLICY1[,POLICY2]> ({active})] set_version_to_branch <BRANCH_NAME>  # change to the given branch
       active      # switch if the given branch is checked out
     remove <PACKAGE_NAME> ...                                 # remove repository from a list

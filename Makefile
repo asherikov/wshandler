@@ -19,6 +19,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_scrape
 	@${MAKE} wrap_test TEST=test_merge
 	@${MAKE} wrap_test TEST=test_set_version
+	@${MAKE} wrap_test TEST=test_pin
 	@${MAKE} wrap_test TEST=test_branch
 	@${MAKE} wrap_test TEST=test_init
 	@${MAKE} wrap_test TEST=test_multilist
@@ -152,6 +153,22 @@ test_set_version:
 	! ${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_url NONE NONE
 	${WSHANDLER} -t ${TYPE} --root tests/update/ set_version_by_name qpmad_tag 1.3.0
 	grep 1.3.0 tests/update/.${TYPE} > /dev/null
+
+test_pin:
+	cp tests/pin/.${TYPE} tests/pin/.${TYPE}.test_pin
+	${WSHANDLER} -t ${TYPE} --root tests/pin/ -p shallow update
+	# versions start as commit hashes
+	grep '6a6b5d7' tests/pin/.${TYPE} > /dev/null
+	grep '4c7e4e2' tests/pin/.${TYPE} > /dev/null
+	# pin replaces hashes with tags when tags are available
+	${WSHANDLER} -t ${TYPE} --root tests/pin/ pin
+	# qpmad: tag 1.3.0 points at this commit, so hash is replaced by tag
+	grep '1\.3\.0' tests/pin/.${TYPE} > /dev/null
+	! grep '6a6b5d7' tests/pin/.${TYPE} > /dev/null
+	# staticoma: no tag at this commit, so hash is kept
+	grep '4c7e4e2' tests/pin/.${TYPE} > /dev/null
+	${WSHANDLER} -t ${TYPE} --root tests/pin/ clean
+	mv tests/pin/.${TYPE}.test_pin tests/pin/.${TYPE}
 
 test_branch:
 	cp tests/update/.${TYPE} tests/update/.${TYPE}.test_branch
