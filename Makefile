@@ -27,6 +27,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_sparse
 	@${MAKE} wrap_test TEST=test_env_subst
 	@${MAKE} wrap_test TEST=test_prefer_version
+	@${MAKE} wrap_test TEST=test_push_policy
 
 wrap_test:
 	@echo ""
@@ -262,6 +263,23 @@ test_prefer_version:
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep master
 	# clean up
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
+
+test_push_policy:
+	# setup: create local bare repo to use as remote (avoids network prompts)
+	rm -rf tests/push_policy
+	mkdir -p tests/push_policy/bare_qpmad
+	cd tests/push_policy/bare_qpmad && git init --bare
+	# clone real repo, then point origin to local bare repo
+	cd tests/push_policy && git clone --depth 1 https://github.com/asherikov/qpmad.git qpmad
+	BARE_QPMAD=$$(cd tests/push_policy/bare_qpmad && pwd); \
+	git -C tests/push_policy/qpmad remote set-url origin "$$BARE_QPMAD"
+	# generate repository list using wshandler scrape, then pin to set version to hash/tag
+	${WSHANDLER} -t ${TYPE} -r tests/push_policy --policy add scrape
+	${WSHANDLER} -t ${TYPE} -r tests/push_policy pin
+	# version policy: repos matching the list version should be skipped (no push attempted)
+	${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p version push 2>&1 | grep "Skipping"
+	# default policy: should attempt push to local bare repo (should succeed, no "Skipping")
+	! ${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p default push 2>&1 | grep "Skipping"
 
 shellcheck:
 	shellcheck wshandler

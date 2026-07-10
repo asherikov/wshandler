@@ -95,7 +95,11 @@ help()
     wsh_echo "                                          #ignores --jobs"
     wsh_echo "    clean [<PACKAGE_NAME> ...]            # remove repository"
     wsh_echo "    prune [<PACKAGE_NAME> ...]            # git prune"
-    wsh_echo "    push [<PACKAGE_NAME> ...]             # git push (sets upstream or pushes tags as needed)"
+    wsh_echo "    [-p|--policy <POLICY1[,POLICY2]>] push [<PACKAGE_NAME> ...]  # git push"
+    wsh_echo "                                          #sets upstream or pushes tags as needed"
+    wsh_echo "      # policies:"
+    wsh_echo "        default    # push all repositories"
+    wsh_echo "        version    # skip repositories whose current version matches the repository list"
     wsh_echo "    unshallow [<PACKAGE_NAME> ...]        # git unshallow"
     wsh_echo "    feature_branches [<PACKAGE_NAME> ...] # list git feature branches"
     wsh_echo "    [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull"
@@ -356,6 +360,7 @@ dir_git_status()
 dir_git()
 {
     wsh_echo "Performing '$1' on '$2'"
+    NAME="$2"
     REPO_DIR="${WSH_WORKSPACE_ROOT}$2"
     dir_git_assert "${REPO_DIR}"
 
@@ -373,19 +378,6 @@ dir_git()
                 | (grep 'refs/remotes/' | grep -v '\(/main\)\|\(/master\)\|\(/release\)\|\(/gh-pages\)\|\(/HEAD\)' || true)
             ;;
         prune)  git remote | xargs --no-run-if-empty -I {} git remote prune {};;
-        push)
-            CURRENT_TAG=$(git tag --points-at HEAD 2>/dev/null | head -n 1)
-            if [ -n "${CURRENT_TAG}" ]
-            then
-                git push origin "${CURRENT_TAG}"
-            elif ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' > /dev/null 2>&1
-            then
-                CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-                git push --set-upstream origin "${CURRENT_BRANCH}"
-            else
-                git push
-            fi
-            ;;
     esac
     popd > /dev/null
 }
@@ -553,6 +545,57 @@ dir_git_clean()
     else
         rm -rf "${REPO_DIR}";
     fi
+}
+
+
+dir_git_push()
+{
+    NAME="$1"
+    REPO_DIR="${WSH_WORKSPACE_ROOT}$1"
+    REPO_URL="$2"
+    REPO_VERSION="$3"
+
+    dir_git_assert "${REPO_DIR}"
+
+    pushd "${REPO_DIR}" > /dev/null
+    PUSH_DO=YES
+    IFS=',' read -ra POLICIES <<< "${WSH_COMMAND_POLICY}"
+    for POLICY in "${POLICIES[@]}"
+    do
+        case ${POLICY} in
+            default)
+                ;;
+            version)
+                if [ -n "${REPO_VERSION}" ] && [ "${REPO_VERSION}" != "-" ]
+                then
+                    REPO_VERSION_HASH=$(git rev-parse --verify "${REPO_VERSION}^{commit}" 2> /dev/null || echo -n "-")
+                    GIT_ACTUAL_HASH=$(dir_git_get_hash || echo -n "-")
+                    if [ "${REPO_VERSION_HASH}" != "-" ] && [ "${REPO_VERSION_HASH}" = "${GIT_ACTUAL_HASH}" ]
+                    then
+                        wsh_echo "Skipping '${NAME}': version matches repository list."
+                        PUSH_DO=NO
+                    fi
+                fi
+                ;;
+            *)
+                wsh_exit 23 "Unsupported push policy '${POLICY}'.";;
+        esac
+    done
+    if [ "${PUSH_DO}" = "YES" ]
+    then
+        CURRENT_TAG=$(git tag --points-at HEAD 2>/dev/null | head -n 1)
+        if [ -n "${CURRENT_TAG}" ]
+        then
+            git push origin "${CURRENT_TAG}"
+        elif ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' > /dev/null 2>&1
+        then
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            git push --set-upstream origin "${CURRENT_BRANCH}"
+        else
+            git push
+        fi
+    fi
+    popd > /dev/null
 }
 
 
@@ -1143,7 +1186,7 @@ execute_selective_command()
     for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
     do
         case ${COMMAND_NAME} in
-            clean|update)
+            clean|update|push)
                 "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") \
                     | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}_${COMMAND_NAME}";;
             *)
@@ -1318,7 +1361,7 @@ do
                     then
                         wsh_echo "Processing '${DIR}'"
                         case $1 in
-                            clean|update)   "dir_git_$1" "${DIR}" "-" "-"   ;;
+                            clean|update|push)   "dir_git_$1" "${DIR}" "-" "-"   ;;
                             *)              "dir_git" "$1" "${DIR}" "-" "-" ;;
                         esac
                     else
