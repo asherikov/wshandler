@@ -20,9 +20,14 @@ wsh_exit()
 
 wsh_repo_tuples()
 {
-    if [ -n "${WSH_SED}" ]
+    if [ ${#WSH_SED[@]} -gt 0 ]
     then
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$@" | sed "${WSH_SED}"
+        local SED_ARGS=()
+        for SED_EXPR in "${WSH_SED[@]}"
+        do
+            SED_ARGS+=(-e "${SED_EXPR}")
+        done
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$@" | sed "${SED_ARGS[@]}"
     else
         "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$@"
     fi
@@ -63,7 +68,8 @@ help()
     wsh_echo "                                                      #gettext envsubst has to be installed"
     wsh_echo "  -q|--quiet                                          # Suppress most of the output"
     wsh_echo "  -s|--sed <SED_COMMAND>         {}                   # Apply sed command to output of"
-    wsh_echo "                                                      #repo tuples (e.g., to overwrite repository URLs)"
+    wsh_echo "                                                      #repo tuples (e.g., to overwrite repository URLs),"
+    wsh_echo "                                                      #can be specified multiple times"
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
@@ -815,9 +821,12 @@ check_workspace()
     then
         WSHANDLER+=("-P" "${WSH_PREFER_VERSION}")
     fi
-    if [ -n "${WSH_SED}" ]
+    if [ ${#WSH_SED[@]} -gt 0 ]
     then
-        WSHANDLER+=("-s" "${WSH_SED}")
+        for SED_EXPR in "${WSH_SED[@]}"
+        do
+            WSHANDLER+=("-s" "${SED_EXPR}")
+        done
     fi
 }
 
@@ -1310,7 +1319,7 @@ WSH_QUIET=NO
 WSH_WORKSPACE_TYPE=repos
 WSH_ENV_SUBST="cat"
 WSH_PREFER_VERSION=""
-WSH_SED=""
+WSH_SED=()
 
 while [[ $# -gt 0 ]]
 do
@@ -1339,7 +1348,7 @@ do
         -U|--unmanaged)      WSH_UNMANAGED="YES";                        shift;;
         -q|--quiet)          WSH_QUIET="YES";                            shift;;
         -e|--env-subst)      WSH_ENV_SUBST="envsubst";                   shift;;
-        -s|--sed)            WSH_SED="$2";                               shift; shift;;
+        -s|--sed)            WSH_SED+=("$2");                           shift; shift;;
 
         -l|--list)
             test "${WSH_REPOLIST_SOURCE}" != "-L" || wsh_exit 7 "Arguments -l and -L are incompatible.";

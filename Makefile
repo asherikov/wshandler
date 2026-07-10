@@ -286,12 +286,16 @@ test_sed:
 	# sed replaces github.com with example.com in repo URLs
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' status | grep "example.com/asherikov/staticoma.git"
 	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' status | grep "example.com/asherikov/qpmad.git"
+	# multiple sed commands: replace github.com with example.com and asherikov with user
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' -s 's|asherikov|user|g' status | grep "example.com/user/staticoma.git"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' -s 's|asherikov|user|g' status | grep "example.com/user/qpmad.git"
 	# without sed, URLs should remain unchanged
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
 	! ${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "example.com"
 	# sed with update: the replaced URL should be passed to the clone command
 	rm -rf tests/update/staticoma tests/update/qpmad
 	! ${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|invalid\.invalid|g' update 2>&1
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
 
 shellcheck:
 	shellcheck wshandler
