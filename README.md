@@ -137,6 +137,8 @@ Common arguments:
                                                       #in repository lists (disabled by default),
                                                       #gettext envsubst has to be installed
   -q|--quiet                                          # Suppress most of the output
+  -s|--sed <SED_COMMAND>         {}                   # Apply sed command to output of
+                                                      #repo tuples (e.g., to overwrite repository URLs)
 
 Repository list commands:
   Information:

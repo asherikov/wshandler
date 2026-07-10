@@ -18,6 +18,16 @@ wsh_exit()
     exit "$1"
 }
 
+wsh_repo_tuples()
+{
+    if [ -n "${WSH_SED}" ]
+    then
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$@" | sed "${WSH_SED}"
+    else
+        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$@"
+    fi
+}
+
 help()
 {
     EXIT_CODE=${1:-"0"}
@@ -52,6 +62,8 @@ help()
     wsh_echo "                                                      #in repository lists (disabled by default),"
     wsh_echo "                                                      #gettext envsubst has to be installed"
     wsh_echo "  -q|--quiet                                          # Suppress most of the output"
+    wsh_echo "  -s|--sed <SED_COMMAND>         {}                   # Apply sed command to output of"
+    wsh_echo "                                                      #repo tuples (e.g., to overwrite repository URLs)"
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
@@ -181,7 +193,7 @@ git_scrape()
         FIND_ARGS+=(-mindepth 2)
     fi
     REPO_DIRS=$(cd "${SCRAPE_ROOT}" && find ./ "${FIND_ARGS[@]}" -type d -name ".git" | sed -e 's|^./||' -e "s|/.git$||" | sort)
-    UNKNOWN_REPO_DIRS=$(comm -2 -3 <(echo "${REPO_DIRS}" | tr ' ' '\n') <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" git < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | sort))
+    UNKNOWN_REPO_DIRS=$(comm -2 -3 <(echo "${REPO_DIRS}" | tr ' ' '\n') <(wsh_repo_tuples git < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | sort))
 
     for REPO_DIR in ${UNKNOWN_REPO_DIRS}
     do
@@ -609,7 +621,7 @@ status()
             echo "name|version|actual version|HM|repository";
             echo "----|-------|--------------|--|----------";
         fi
-        "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | while read -r -a tuple; do "dir_${SOURCE_TYPE}_status" "${tuple[@]}"; done | "${WSH_SORT_COMMAND}"
+        wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | while read -r -a tuple; do "dir_${SOURCE_TYPE}_status" "${tuple[@]}"; done | "${WSH_SORT_COMMAND}"
     )
 
     FORMAT_STRING=""
@@ -757,7 +769,7 @@ check_workspace()
 
             for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
             do
-                "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${REPOLIST}") \
+                wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${REPOLIST}") \
                     | while read -r NAME REPO VERSION; \
                     do \
                         MERGE_NAME="${RELATIVE_PATH}${NAME}"; \
@@ -802,6 +814,10 @@ check_workspace()
     if [ -n "${WSH_PREFER_VERSION}" ]
     then
         WSHANDLER+=("-P" "${WSH_PREFER_VERSION}")
+    fi
+    if [ -n "${WSH_SED}" ]
+    then
+        WSHANDLER+=("-s" "${WSH_SED}")
     fi
 }
 
@@ -1110,7 +1126,7 @@ dir_run()
 
 execute_foreach()
 {
-    "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "$1" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$2"
+    wsh_repo_tuples "$1" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | "${WSH_XARGS[@]}" -I {} "${WSHANDLER[@]}" dir_run "{}" "$2"
 }
 
 execute_branch()
@@ -1129,7 +1145,7 @@ execute_branch()
             execute_foreach git "git branch -a | grep '${BRANCH}'";;
         merge)
             TARGET_BRANCH=${3:-"main"}
-            "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" git < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
+            wsh_repo_tuples git < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | cut -f 1 -d ' ' | while read -r NAME; do dir_git_merge "${NAME}" "${BRANCH}" "${TARGET_BRANCH}"; done
             ;;
         *) help 1;;
     esac
@@ -1187,10 +1203,10 @@ execute_selective_command()
     do
         case ${COMMAND_NAME} in
             clean|update|push)
-                "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") \
+                wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") \
                     | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}_${COMMAND_NAME}";;
             *)
-                "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") \
+                wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") \
                     | "${WSH_XARGS[@]}" -n 3 "${WSHANDLER[@]}" "dir_${SOURCE_TYPE}" "${COMMAND_NAME}";;
         esac
     done
@@ -1245,7 +1261,7 @@ set_version()
                 execute_add "${SOURCE_TYPE}" "${NAME}" "${REPO}" "${TARGET_VERSION}";
             fi;
             test "${TYPE}" == "ALL" || exit 0;
-        done < <("${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_repo_tuples" "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}"))
+        done < <(wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}"))
     done
 
     test "${UPDATED}" = "YES" || wsh_exit 61 "Nothing to update."
@@ -1294,6 +1310,7 @@ WSH_QUIET=NO
 WSH_WORKSPACE_TYPE=repos
 WSH_ENV_SUBST="cat"
 WSH_PREFER_VERSION=""
+WSH_SED=""
 
 while [[ $# -gt 0 ]]
 do
@@ -1322,6 +1339,7 @@ do
         -U|--unmanaged)      WSH_UNMANAGED="YES";                        shift;;
         -q|--quiet)          WSH_QUIET="YES";                            shift;;
         -e|--env-subst)      WSH_ENV_SUBST="envsubst";                   shift;;
+        -s|--sed)            WSH_SED="$2";                               shift; shift;;
 
         -l|--list)
             test "${WSH_REPOLIST_SOURCE}" != "-L" || wsh_exit 7 "Arguments -l and -L are incompatible.";

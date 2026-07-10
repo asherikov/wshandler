@@ -28,6 +28,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_env_subst
 	@${MAKE} wrap_test TEST=test_prefer_version
 	@${MAKE} wrap_test TEST=test_push_policy
+	@${MAKE} wrap_test TEST=test_sed
 
 wrap_test:
 	@echo ""
@@ -280,6 +281,17 @@ test_push_policy:
 	${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p version push 2>&1 | grep "Skipping"
 	# default policy: should attempt push to local bare repo (should succeed, no "Skipping")
 	! ${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p default push 2>&1 | grep "Skipping"
+
+test_sed:
+	# sed replaces github.com with example.com in repo URLs
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' status | grep "example.com/asherikov/staticoma.git"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|example.com|g' status | grep "example.com/asherikov/qpmad.git"
+	# without sed, URLs should remain unchanged
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
+	! ${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "example.com"
+	# sed with update: the replaced URL should be passed to the clone command
+	rm -rf tests/update/staticoma tests/update/qpmad
+	! ${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|invalid\.invalid|g' update 2>&1
 
 shellcheck:
 	shellcheck wshandler
