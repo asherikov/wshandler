@@ -95,7 +95,7 @@ help()
     wsh_echo "                                          #ignores --jobs"
     wsh_echo "    clean [<PACKAGE_NAME> ...]            # remove repository"
     wsh_echo "    prune [<PACKAGE_NAME> ...]            # git prune"
-    wsh_echo "    push [<PACKAGE_NAME> ...]             # git push"
+    wsh_echo "    push [<PACKAGE_NAME> ...]             # git push (sets upstream or pushes tags as needed)"
     wsh_echo "    unshallow [<PACKAGE_NAME> ...]        # git unshallow"
     wsh_echo "    feature_branches [<PACKAGE_NAME> ...] # list git feature branches"
     wsh_echo "    [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull"
@@ -373,7 +373,19 @@ dir_git()
                 | (grep 'refs/remotes/' | grep -v '\(/main\)\|\(/master\)\|\(/release\)\|\(/gh-pages\)\|\(/HEAD\)' || true)
             ;;
         prune)  git remote | xargs --no-run-if-empty -I {} git remote prune {};;
-        push)   git push;;
+        push)
+            CURRENT_TAG=$(git tag --points-at HEAD 2>/dev/null | head -n 1)
+            if [ -n "${CURRENT_TAG}" ]
+            then
+                git push origin "${CURRENT_TAG}"
+            elif ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' > /dev/null 2>&1
+            then
+                CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+                git push --set-upstream origin "${CURRENT_BRANCH}"
+            else
+                git push
+            fi
+            ;;
     esac
     popd > /dev/null
 }

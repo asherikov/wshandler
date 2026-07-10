@@ -180,7 +180,7 @@ Repository commands:
                                           #ignores --jobs
     clean [<PACKAGE_NAME> ...]            # remove repository
     prune [<PACKAGE_NAME> ...]            # git prune
-    push [<PACKAGE_NAME> ...]             # git push
+    push [<PACKAGE_NAME> ...]             # git push (sets upstream or pushes tags as needed)
     unshallow [<PACKAGE_NAME> ...]        # git unshallow
     feature_branches [<PACKAGE_NAME> ...] # list git feature branches
     [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull
