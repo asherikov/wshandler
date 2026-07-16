@@ -7,11 +7,20 @@ test: shellcheck
 	@${MAKE} test_type TYPE=repos
 	@${MAKE} wrap_test TEST=test_root_git
 	@${MAKE} wrap_test TEST=test_clone_ws
+	@${MAKE} wrap_test TEST=test_clone_ws_prefer_version
 	@${MAKE} wrap_test TEST=test_unmanaged
 
 test_clone_ws:
 	rm -rf tests/clone
 	${WSHANDLER} -r tests/clone -p shallow clone git https://github.com/asherikov/sharf.git main
+
+test_clone_ws_prefer_version:
+	rm -rf tests/clone_prefer
+	# clone workspace root with --prefer-version overriding the branch
+	${WSHANDLER} -r tests/clone_prefer -P 0.2.4 clone git https://github.com/asherikov/sharf.git main
+	# workspace root should be at tag 0.2.4, not branch main
+	test "$$(git -C tests/clone_prefer describe --tags --exact-match 2>/dev/null)" = "0.2.4"
+	rm -rf tests/clone_prefer
 
 test_type:
 	@${MAKE} wrap_test TEST=test_update
@@ -27,6 +36,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_sparse
 	@${MAKE} wrap_test TEST=test_env_subst
 	@${MAKE} wrap_test TEST=test_prefer_version
+	@${MAKE} wrap_test TEST=test_prefer_version_root
 	@${MAKE} wrap_test TEST=test_push_policy
 	@${MAKE} wrap_test TEST=test_sed
 
@@ -264,6 +274,19 @@ test_prefer_version:
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep master
 	# clean up
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
+
+test_prefer_version_root:
+	rm -Rf tests/prefer_version_root
+	mkdir -p tests/prefer_version_root
+	# init workspace root as a git repo with a remote; commit the repolist
+	# so checkout does not conflict with untracked files
+	cd tests/prefer_version_root && git init && git remote add origin https://github.com/asherikov/sharf.git
+	cd tests/prefer_version_root && git fetch && git checkout main
+	cd tests/prefer_version_root && echo "repositories:" > .${TYPE} && git add -f .${TYPE} && git commit -m "init"
+	# update with --prefer-version should checkout tag 0.2.4 for workspace root
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version_root/ -P 0.2.4 update
+	test "$$(git -C tests/prefer_version_root describe --tags --exact-match 2>/dev/null)" = "0.2.4"
+	rm -Rf tests/prefer_version_root
 
 test_push_policy:
 	# setup: create local bare repo to use as remote (avoids network prompts)

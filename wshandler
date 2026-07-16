@@ -82,7 +82,7 @@ help()
     wsh_echo "        default   # plain clone"
     wsh_echo "        shallow   # shallow clone"
     wsh_echo "        nolfs     # disable git LFS"
-    wsh_echo "    clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository"
+    wsh_echo "    [-P|--prefer-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository"
     wsh_echo "    init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace"
     wsh_echo ""
     wsh_echo "  Modification:"
@@ -130,6 +130,7 @@ help()
     wsh_echo "        nosubmodules # do not checkout submodules"
     wsh_echo "        origin       # check origin URL matches list, remove and reclone if mismatch"
     wsh_echo "      # <REF> -- Prefer specified tag or branch over the version in the repository list"
+    wsh_echo "                # also applied to the workspace root repository on clone and update"
     wsh_echo ""
     wsh_echo "  Generic commands:"
     wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository"
@@ -167,10 +168,26 @@ update_root()
         then
             wsh_echo "Processing workspace root ${WSH_WORKSPACE_ROOT}"
             git fetch
+
+            ROOT_VERSION=""
+            if [ -n "${WSH_PREFER_VERSION}" ]
+            then
+                if git ls-remote --exit-code origin "${WSH_PREFER_VERSION}" > /dev/null 2>&1
+                then
+                    wsh_echo "Preferencing version '${WSH_PREFER_VERSION}' for workspace root"
+                    ROOT_VERSION="${WSH_PREFER_VERSION}"
+                    touch "${WSH_CACHE_DIR}/prefer_version_matched"
+                fi
+            fi
+
             if git diff --exit-code > /dev/null && git diff --cached --exit-code > /dev/null
             then
+                if [ -n "${ROOT_VERSION}" ]
+                then
+                    git checkout "${ROOT_VERSION}" || true
+                fi
                 # if we are on a branch make sure that it is updated
-                if (git branch --show-current | grep "${REPO_VERSION}")
+                if [ -n "$(git branch --show-current)" ]
                 then
                     PULL_ENV=(env)
                     PULL_ARGS=()
@@ -1167,7 +1184,15 @@ execute_commit()
 
 execute_clone()
 {
-    "$1_clone" "NO" "$2" "$3" "${WSH_WORKSPACE_ROOT}"
+    CLONE_VERSION="$3"
+
+    if [ -n "${WSH_PREFER_VERSION}" ] && git ls-remote --exit-code "$2" "${WSH_PREFER_VERSION}" > /dev/null 2>&1
+    then
+        wsh_echo "Preferencing version '${WSH_PREFER_VERSION}' over '${CLONE_VERSION}' for workspace root"
+        CLONE_VERSION="${WSH_PREFER_VERSION}"
+    fi
+
+    "$1_clone" "NO" "$2" "${CLONE_VERSION}" "${WSH_WORKSPACE_ROOT}"
 
     execute_selective_command update
 }
