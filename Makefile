@@ -39,6 +39,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_prefer_version_root
 	@${MAKE} wrap_test TEST=test_push_policy
 	@${MAKE} wrap_test TEST=test_sed
+	@${MAKE} wrap_test TEST=test_version_number
 
 wrap_test:
 	@echo ""
@@ -319,6 +320,197 @@ test_sed:
 	rm -rf tests/update/staticoma tests/update/qpmad
 	! ${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|invalid\.invalid|g' update 2>&1
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
+
+# Workspace initialization for version_number tests: clears repo list and
+# adds a repository.
+# Parameters:
+#   VN_DIR - repo subdirectory under tests/version_number/
+test_version_number_init:
+	rm -f tests/version_number/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/version_number add git ${VN_DIR} dummy main
+
+test_version_number:
+	# --- setup: copy pregenerated fixtures ---
+	rm -rf tests/version_number
+	cp -a tests/version_number_data tests/version_number
+	# Create single-file test directories from all/ fixtures (reuse, not duplicate)
+	mkdir -p tests/version_number/cmake_only tests/version_number/pkg_xml
+	mkdir -p tests/version_number/pyproj tests/version_number/vcpkg
+	mkdir -p tests/version_number/missing tests/version_number/tagging
+	mkdir -p tests/version_number/unmanaged tests/version_number/empty
+	cp tests/version_number/all/CMakeLists.txt tests/version_number/cmake_only/
+	cp tests/version_number/all/package.xml tests/version_number/pkg_xml/
+	cp tests/version_number/all/pyproject.toml tests/version_number/pyproj/
+	cp tests/version_number/all/vcpkg.json tests/version_number/vcpkg/
+	cp tests/version_number/all/CMakeLists.txt tests/version_number/missing/
+	cp tests/version_number/all/CMakeLists.txt tests/version_number/tagging/
+	cp tests/version_number/all/CMakeLists.txt tests/version_number/unmanaged/
+	# Create projects/ and multipkg/ fixtures from all/ (reuse, not duplicate)
+	mkdir -p tests/version_number/projects/proj_a tests/version_number/projects/proj_b
+	mkdir -p tests/version_number/multipkg/pkg_a tests/version_number/multipkg/pkg_b
+	sed 's/foo/a/' tests/version_number/all/CMakeLists.txt > tests/version_number/projects/proj_a/CMakeLists.txt
+	sed 's/foo/b/;s/1.0.0/2.0.0/' tests/version_number/all/CMakeLists.txt > tests/version_number/projects/proj_b/CMakeLists.txt
+	sed 's/foo/a/' tests/version_number/all/CMakeLists.txt > tests/version_number/multipkg/pkg_a/CMakeLists.txt
+	sed 's/foo/b/' tests/version_number/all/CMakeLists.txt > tests/version_number/multipkg/pkg_b/CMakeLists.txt
+
+	# --- test: CMakeLists.txt only, bump_patch ---
+	${MAKE} test_version_number_init VN_DIR=cmake_only
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(foo VERSION 1.0.1)' tests/version_number/cmake_only/CMakeLists.txt > /dev/null
+
+	# --- test: CMakeLists.txt only, bump_minor ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_minor version_number
+	grep 'project(foo VERSION 1.1.0)' tests/version_number/cmake_only/CMakeLists.txt > /dev/null
+
+	# --- test: CMakeLists.txt only, bump_major ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_major version_number
+	grep 'project(foo VERSION 2.0.0)' tests/version_number/cmake_only/CMakeLists.txt > /dev/null
+
+	# --- test: set ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 0.9.9
+	grep 'project(foo VERSION 0.9.9)' tests/version_number/cmake_only/CMakeLists.txt > /dev/null
+
+	# --- test: package.xml only ---
+	${MAKE} test_version_number_init VN_DIR=pkg_xml
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep '<version>1.0.1</version>' tests/version_number/pkg_xml/package.xml > /dev/null
+
+	# --- test: pyproject.toml only ---
+	${MAKE} test_version_number_init VN_DIR=pyproj
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'version = "1.0.1"' tests/version_number/pyproj/pyproject.toml > /dev/null
+
+	# --- test: vcpkg.json only ---
+	${MAKE} test_version_number_init VN_DIR=vcpkg
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep '"version": "1.0.1"' tests/version_number/vcpkg/vcpkg.json > /dev/null
+
+	# --- test: all four files, consistent versions ---
+	${MAKE} test_version_number_init VN_DIR=all
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(foo VERSION 1.0.1)' tests/version_number/all/CMakeLists.txt > /dev/null
+	grep '<version>1.0.1</version>' tests/version_number/all/package.xml > /dev/null
+	grep 'version = "1.0.1"' tests/version_number/all/pyproject.toml > /dev/null
+	grep '"version": "1.0.1"' tests/version_number/all/vcpkg.json > /dev/null
+
+	# --- test: inconsistent versions, bump should fail ---
+	${MAKE} test_version_number_init VN_DIR=inconsistent
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+
+	# --- test: inconsistent versions, set should succeed ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 3.0.0
+	grep 'project(foo VERSION 3.0.0)' tests/version_number/inconsistent/CMakeLists.txt > /dev/null
+	grep '<version>3.0.0</version>' tests/version_number/inconsistent/package.xml > /dev/null
+
+	# --- test: missing files are skipped with warning ---
+	${MAKE} test_version_number_init VN_DIR=missing
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(foo VERSION 1.0.1)' tests/version_number/missing/CMakeLists.txt > /dev/null
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(foo VERSION 1.0.2)' tests/version_number/missing/CMakeLists.txt > /dev/null
+
+	# --- test: no files at all, skip silently ---
+	${MAKE} test_version_number_init VN_DIR=empty
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number 2>&1 | grep -v "Processing" | grep . && exit 1 || true
+
+	# --- test: default policy is 'set', requires version ---
+	${MAKE} test_version_number_init VN_DIR=missing
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number version_number
+	${WSHANDLER} -t ${TYPE} -r tests/version_number version_number 7.7.7
+	grep 'project(foo VERSION 7.7.7)' tests/version_number/missing/CMakeLists.txt > /dev/null
+
+	# --- test: set without version should fail ---
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number
+
+	# --- test: invalid version format should fail ---
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 1.2
+
+	# --- test: tag policy (commit + git tag) ---
+	cd tests/version_number/tagging && git init -q && git add -A
+	cd tests/version_number/tagging && git -c user.name=test -c user.email=test@test commit -m "init" -q
+	${MAKE} test_version_number_init VN_DIR=tagging
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch,tag version_number
+	grep 'project(foo VERSION 1.0.1)' tests/version_number/tagging/CMakeLists.txt > /dev/null
+	git -C tests/version_number/tagging tag --list | grep '1.0.1' > /dev/null
+	git -C tests/version_number/tagging log --oneline | grep 'Bump version to 1.0.1' > /dev/null
+
+	# --- test: tag with set policy, same version (should skip commit/tag) ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set,tag version_number 1.0.1 tagging 2>&1 | grep "Skipping tag"
+	! git -C tests/version_number/tagging tag --list | grep '1.0.2' > /dev/null
+	git -C tests/version_number/tagging log --oneline | grep -q 'Bump version to 1.0.1'
+
+	# --- test: tag with set policy, new version (should commit/tag) ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set,tag version_number 1.0.2 tagging
+	grep 'project(foo VERSION 1.0.2)' tests/version_number/tagging/CMakeLists.txt > /dev/null
+	git -C tests/version_number/tagging tag --list | grep '1.0.2' > /dev/null
+	git -C tests/version_number/tagging log --oneline | grep 'Bump version to 1.0.2' > /dev/null
+
+	# --- test: repo filtering ---
+	rm -f tests/version_number/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/version_number add git projects/proj_a dummy main
+	${WSHANDLER} -t ${TYPE} -r tests/version_number add git projects/proj_b dummy main
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number projects/proj_a
+	grep 'project(a VERSION 1.0.1)' tests/version_number/projects/proj_a/CMakeLists.txt > /dev/null
+	grep 'project(b VERSION 2.0.0)' tests/version_number/projects/proj_b/CMakeLists.txt > /dev/null
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number projects/proj_b
+	grep 'project(a VERSION 1.0.1)' tests/version_number/projects/proj_a/CMakeLists.txt > /dev/null
+	grep 'project(b VERSION 2.0.1)' tests/version_number/projects/proj_b/CMakeLists.txt > /dev/null
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 5.0.0 projects/proj_a projects/proj_b
+	grep 'project(a VERSION 5.0.0)' tests/version_number/projects/proj_a/CMakeLists.txt > /dev/null
+	grep 'project(b VERSION 5.0.0)' tests/version_number/projects/proj_b/CMakeLists.txt > /dev/null
+
+	# --- test: nonexistent repo ---
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number nonexistent
+
+	# --- test: multi-package repo (version files in subdirectories, not root) ---
+	${MAKE} test_version_number_init VN_DIR=multipkg
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(a VERSION 1.0.1)' tests/version_number/multipkg/pkg_a/CMakeLists.txt > /dev/null
+	grep 'project(b VERSION 1.0.1)' tests/version_number/multipkg/pkg_b/CMakeLists.txt > /dev/null
+
+	# --- test: multi-package repo, inconsistent versions, bump should fail ---
+	echo 'project(b VERSION 2.0.0)' > tests/version_number/multipkg/pkg_b/CMakeLists.txt
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+
+	# --- test: multi-package repo, inconsistent versions, set should succeed ---
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 3.0.0
+	grep 'project(a VERSION 3.0.0)' tests/version_number/multipkg/pkg_a/CMakeLists.txt > /dev/null
+	grep 'project(b VERSION 3.0.0)' tests/version_number/multipkg/pkg_b/CMakeLists.txt > /dev/null
+
+	# --- test: root version files take priority over subdirectory ones ---
+	${MAKE} test_version_number_init VN_DIR=root_priority
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(root VERSION 1.0.1)' tests/version_number/root_priority/CMakeLists.txt > /dev/null
+	grep 'project(sub VERSION 2.0.0)' tests/version_number/root_priority/sub_pkg/CMakeLists.txt > /dev/null
+
+	# --- test: arbitrary-depth package discovery with subdir exclusion ---
+	${MAKE} test_version_number_init VN_DIR=deep
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number
+	grep 'project(pkg_a VERSION 1.0.1)' tests/version_number/deep/pkg_a/CMakeLists.txt > /dev/null
+	grep 'project(pkg_b VERSION 1.0.1)' tests/version_number/deep/nested/pkg_b/CMakeLists.txt > /dev/null
+	grep 'project(sub VERSION 2.0.0)' tests/version_number/deep/nested/pkg_b/sub/CMakeLists.txt > /dev/null
+
+	# --- test: --unmanaged flag (process directory without repo list) ---
+	${WSHANDLER} -U -p bump_patch version_number tests/version_number/unmanaged
+	grep 'project(foo VERSION 1.0.1)' tests/version_number/unmanaged/CMakeLists.txt > /dev/null
+	${WSHANDLER} --unmanaged -p set version_number 9.8.7 tests/version_number/unmanaged
+	grep 'project(foo VERSION 9.8.7)' tests/version_number/unmanaged/CMakeLists.txt > /dev/null
+
+	# --- test: --unmanaged with nonexistent directory should fail ---
+	! ${WSHANDLER} -U -p bump_patch version_number tests/version_number/nonexistent_dir
+
+	# --- test: --unmanaged without any directory should fail ---
+	! ${WSHANDLER} -U -p bump_patch version_number
+
+	# --- test: multi-line project() in CMakeLists.txt ---
+	${MAKE} test_version_number_init VN_DIR=mline
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p bump_patch version_number mline
+	grep '  VERSION 1.0.1)' tests/version_number/mline/CMakeLists.txt > /dev/null
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 5.0.0 mline
+	grep '  VERSION 5.0.0)' tests/version_number/mline/CMakeLists.txt > /dev/null
+
+	# --- cleanup ---
+	rm -rf tests/version_number
 
 shellcheck:
 	shellcheck wshandler

@@ -198,6 +198,16 @@ Repository commands:
         nosubmodules # do not checkout submodules
         origin       # check origin URL matches list, remove and reclone if mismatch
       # <REF> -- Prefer specified tag or branch over the version in the repository list
+                # also applied to the workspace root repository on clone and update
+    [-p|--policy <POLICY1[,POLICY2]>] version_number [<VERSION>] [<REPO> ...]  # bump or set package version
+      # in CMakeLists.txt, package.xml, pyproject.toml, vcpkg.json
+      # one of the following is required:
+        bump_major  # increment major version, reset minor and patch to 0
+        bump_minor  # increment minor version, reset patch to 0
+        bump_patch  # increment patch version
+        set         # set version directly, requires <VERSION> argument
+      # optional:
+        tag         # commit changes and create a git tag after updating files
 
   Generic commands:
     [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
