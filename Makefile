@@ -276,7 +276,7 @@ test_prefer_version:
 	# clean up
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
 
-test_prefer_version_root:
+test_prefer_version_root: setup_git
 	rm -Rf tests/prefer_version_root
 	mkdir -p tests/prefer_version_root
 	# init workspace root as a git repo with a remote; commit the repolist
@@ -329,7 +329,7 @@ test_version_number_init:
 	rm -f tests/version_number/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/version_number add git ${VN_DIR} dummy main
 
-test_version_number:
+test_version_number: setup_git
 	# --- setup: copy pregenerated fixtures ---
 	rm -rf tests/version_number
 	cp -a tests/version_number_data tests/version_number
@@ -552,5 +552,9 @@ appimage:
 
 appimage_deps:
 	sudo apt install -y --no-install-recommends desktop-file-utils zsync
+
+setup_git:
+	git config user.name > /dev/null \
+		|| (git config --global user.email "you@example.com" && git config --global user.name "Your Name")
 
 .PHONY: appimage

@@ -17,7 +17,7 @@ jobs:
             - run: env DEBIAN_FRONTEND=noninteractive apt install --yes --no-install-recommends bash git sudo ca-certificates make
             - run: ./wshandler install_test_deps
             - run: ./wshandler -y yq --policy download install /usr/bin/
-            - run: make test YAML_TOOL="auto"
+            - run: make test YAML_TOOL=auto
 
     ubuntu22-gojq:
         runs-on: ubuntu-22.04
@@ -25,14 +25,14 @@ jobs:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
             - run: sudo ./wshandler -y gojq --policy apt install /usr/bin/
-            - run: make test YAML_TOOL="gojq"
+            - run: make test YAML_TOOL=gojq
 
     ubuntu22-yq:
         runs-on: ubuntu-22.04
         steps:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
-            - run: make test YAML_TOOL="yq"
+            - run: make test YAML_TOOL=yq
 
     ubuntu22-apt-gojq:
         runs-on: ubuntu-22.04
@@ -40,7 +40,7 @@ jobs:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
             - run: sudo ./wshandler -y gojq --policy apt install /usr/bin/
-            - run: make test WSHANDLER="wshandler -y gojq"
+            - run: make test YAML_TOOL=gojq
             - run: sudo ./wshandler upgrade /usr/bin/
             - run: wshandler --version
 
@@ -50,7 +50,7 @@ jobs:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
             - run: sudo ./wshandler -y yq --policy download install /usr/bin/
-            - run: make test WSHANDLER="wshandler -y yq"
+            - run: make test YAML_TOOL=yq
             - run: sudo ./wshandler upgrade /usr/bin/
             - run: wshandler --version
 
@@ -60,7 +60,7 @@ jobs:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
             - run: sudo ./wshandler -y yq --policy snap install /usr/bin/
-            - run: make test WSHANDLER="wshandler -y yq"
+            - run: make test YAML_TOOL=yq
             - run: sudo ./wshandler upgrade /usr/bin/
             - run: wshandler --version
 
@@ -70,14 +70,31 @@ jobs:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
             - run: sudo ./wshandler -y gojq --policy apt install /usr/bin/
-            - run: make test YAML_TOOL="gojq"
+            - run: make test YAML_TOOL=gojq
 
     ubuntu24-yq:
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
             - run: ./wshandler install_test_deps
-            - run: make test YAML_TOOL="yq"
+            - run: sudo ./wshandler -y yq --policy download install /usr/bin/
+            - run: make test YAML_TOOL=yq
+
+    ubuntu26-gojq:
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v4
+            - run: ./wshandler install_test_deps
+            - run: sudo ./wshandler -y gojq --policy apt install /usr/bin/
+            - run: make test YAML_TOOL=gojq
+
+    ubuntu26-yq:
+        runs-on: ubuntu-26.04
+        steps:
+            - uses: actions/checkout@v4
+            - run: ./wshandler install_test_deps
+            - run: sudo ./wshandler -y yq --policy download install /usr/bin/
+            - run: make test YAML_TOOL=yq
 
     appimage:
         runs-on: ubuntu-latest
