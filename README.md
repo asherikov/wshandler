@@ -49,12 +49,15 @@ tracking latest versions of repositories and a release workspace branch with
 fixed stable repository versions that is updated when necessary.
 
 
-### Templated repository lists
+### Dynamic modification of repository lists
 
-Repository lists can be changed dynamically based on environment variables:
-`--env-subst` flag forces substitution of environment variables into lists.
-This feature can be used to swap repository URLs (http/git), repository
-branches, etc.
+- Repository lists can be changed dynamically based on environment variables:
+  `--env-subst` flag forces substitution of environment variables into lists.
+  This feature can be used to swap repository URLs (http/git), repository
+  branches, etc.
+
+- There is an alternative option if it is necessary to maintain compatibility
+  with other tools -- repository lists can be preprocessed with sed.
 
 
 ### Multi-repo feature branches
@@ -73,10 +76,17 @@ Repository entries can be tagged for selective updates and status information,
 e.g., `wshandler: {tags: [mytag]}`, see `./tests/tags/` for examples.
 
 
-### Sparce cehckouts
+### Sparse checkouts
 
 `wshandler` provides experimental sparse checkout support for entries that
 contain `wshandler: {sparse: [<path>]}`, see `./tests/sparse` for examples.
+
+
+### Updating package versions
+
+`version_number` updates package version number in multiple files at the same
+time with a single command, e.g., CMakeLists and package.xml. It also performs
+basic consistency checks and optionally commits and tags applied modifications.
 
 
 ### Supported source types
