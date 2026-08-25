@@ -148,7 +148,8 @@ Common arguments:
                                                       #gettext envsubst has to be installed
   -q|--quiet                                          # Suppress most of the output
   -s|--sed <SED_COMMAND>         {}                   # Apply sed command to output of
-                                                      #repo tuples (e.g., to overwrite repository URLs)
+                                                      #repo tuples (e.g., to overwrite repository URLs),
+                                                      #can be specified multiple times
 
 Repository list commands:
   Information:
@@ -161,7 +162,7 @@ Repository list commands:
         default   # plain clone
         shallow   # shallow clone
         nolfs     # disable git LFS
-    clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
+    [-P|--prefer-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
     init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
 
   Modification:
@@ -192,7 +193,8 @@ Repository commands:
                                           #ignores --jobs
     clean [<PACKAGE_NAME> ...]            # remove repository
     prune [<PACKAGE_NAME> ...]            # git prune
-    [-p|--policy <POLICY1[,POLICY2]>] push [<PACKAGE_NAME> ...]  # git push (sets upstream or pushes tags as needed)
+    [-p|--policy <POLICY1[,POLICY2]>] push [<PACKAGE_NAME> ...]  # git push
+                                          #sets upstream or pushes tags as needed
       # policies:
         default    # push all repositories
         version    # skip repositories whose current version matches the repository list
@@ -218,9 +220,7 @@ Repository commands:
         set         # set version directly, requires <VERSION> argument
       # optional:
         tag         # commit changes and create a git tag after updating files
-
-  Generic commands:
-    [-j|--jobs <NUM_THREADS> {1}] foreach git '<COMMAND>'  # execute command in each repository
+    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'  # execute command in each repository
 
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches

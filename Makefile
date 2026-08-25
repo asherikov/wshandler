@@ -39,6 +39,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_prefer_version_root
 	@${MAKE} wrap_test TEST=test_push_policy
 	@${MAKE} wrap_test TEST=test_sed
+	@${MAKE} wrap_test TEST=test_foreach
 	@${MAKE} wrap_test TEST=test_version_number
 
 wrap_test:
@@ -320,6 +321,21 @@ test_sed:
 	rm -rf tests/update/staticoma tests/update/qpmad
 	! ${WSHANDLER} -t ${TYPE} --root tests/update/ -s 's|github\.com|invalid\.invalid|g' update 2>&1
 	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
+
+test_foreach:
+	rm -rf tests/foreach
+	${WSHANDLER} -t ${TYPE} -r tests/foreach -p shallow init git https://github.com/asherikov/staticoma.git https://github.com/asherikov/qpmad.git
+	# foreach without package names: runs on all repos
+	${WSHANDLER} -t ${TYPE} -r tests/foreach foreach git 'pwd' 2>&1 | grep -v 'WSH:' | grep -c 'tests/foreach' | grep '^2$$'
+	# foreach with a single package name: runs only on that package
+	${WSHANDLER} -t ${TYPE} -r tests/foreach foreach git staticoma 'pwd' 2>&1 | grep -v 'WSH:' | grep -c 'staticoma' | grep '^1$$'
+	# foreach with a glob pattern: matches multiple repos
+	${WSHANDLER} -t ${TYPE} -r tests/foreach foreach git 'staticoma.*' 'pwd' 2>&1 | grep -v 'WSH:' | grep -c 'tests/foreach' | grep '^1$$'
+	# foreach with multiple package names
+	${WSHANDLER} -t ${TYPE} -r tests/foreach foreach git staticoma qpmad 'pwd' 2>&1 | grep -v 'WSH:' | grep -c 'tests/foreach' | grep '^2$$'
+	# foreach with nonexistent package: should produce no output
+	test -z "$$(${WSHANDLER} -t ${TYPE} -r tests/foreach foreach git nonexistent 'pwd' 2>&1 | grep -v 'WSH:')"
+	${WSHANDLER} -t ${TYPE} -r tests/foreach clean
 
 # Workspace initialization for version_number tests: clears repo list and
 # adds a repository.
