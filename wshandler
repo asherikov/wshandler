@@ -82,7 +82,7 @@ help()
     wsh_echo "        default   # plain clone"
     wsh_echo "        shallow   # shallow clone"
     wsh_echo "        nolfs     # disable git LFS"
-    wsh_echo "    [-P|--prefer-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository"
+    wsh_echo "    [-V|--target-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository"
     wsh_echo "    init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace"
     wsh_echo ""
     wsh_echo "  Modification:"
@@ -120,7 +120,7 @@ help()
     wsh_echo "        version    # skip repositories whose current version matches the repository list"
     wsh_echo "    unshallow [<PACKAGE_NAME> ...]        # git unshallow"
     wsh_echo "    feature_branches [<PACKAGE_NAME> ...] # list git feature branches"
-    wsh_echo "    [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull"
+    wsh_echo "    [-p|--policy <POLICY1[,POLICY2]>] [-V|--target-version <REF>] update [<PACKAGE_NAME> ...] # git pull"
     wsh_echo "      # policies:"
     wsh_echo "        default      # plain clone"
     wsh_echo "        shallow      # shallow clone"
@@ -140,7 +140,10 @@ help()
     wsh_echo "        set         # set version directly, requires <VERSION> argument"
     wsh_echo "      # optional:"
     wsh_echo "        tag         # commit changes and create a git tag after updating files"
-    wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'  # execute command in each repository"
+    wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'"
+    wsh_echo "      # execute command in each repository"
+    wsh_echo "    [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]"
+    wsh_echo "      # generate changelog file"
     wsh_echo ""
     wsh_echo "  Branching commands:"
     wsh_echo "    branch show ['<GREP_PATTERN>']                    # show matching branches"
@@ -177,12 +180,12 @@ update_root()
             git fetch
 
             ROOT_VERSION=""
-            if [ -n "${WSH_PREFER_VERSION}" ]
+            if [ -n "${WSH_TARGET_VERSION}" ]
             then
-                if git ls-remote --exit-code origin "${WSH_PREFER_VERSION}" > /dev/null 2>&1
+                if git ls-remote --exit-code origin "${WSH_TARGET_VERSION}" > /dev/null 2>&1
                 then
-                    wsh_echo "Preferencing version '${WSH_PREFER_VERSION}' for workspace root"
-                    ROOT_VERSION="${WSH_PREFER_VERSION}"
+                    wsh_echo "Preferencing version '${WSH_TARGET_VERSION}' for workspace root"
+                    ROOT_VERSION="${WSH_TARGET_VERSION}"
                     touch "${WSH_CACHE_DIR}/prefer_version_matched"
                 fi
             fi
@@ -427,12 +430,12 @@ dir_git()
 
 prefer_version()
 {
-    if [ -n "${WSH_PREFER_VERSION}" ]
+    if [ -n "${WSH_TARGET_VERSION}" ]
     then
-        if git ls-remote --exit-code "${REPO_URL}" "${WSH_PREFER_VERSION}" > /dev/null 2>&1
+        if git ls-remote --exit-code "${REPO_URL}" "${WSH_TARGET_VERSION}" > /dev/null 2>&1
         then
-            wsh_echo "Preferencing version '${WSH_PREFER_VERSION}' over '${REPO_VERSION}' for '${NAME}'"
-            REPO_VERSION="${WSH_PREFER_VERSION}"
+            wsh_echo "Preferencing version '${WSH_TARGET_VERSION}' over '${REPO_VERSION}' for '${NAME}'"
+            REPO_VERSION="${WSH_TARGET_VERSION}"
             touch "${WSH_CACHE_DIR}/prefer_version_matched"
         fi
     fi
@@ -828,7 +831,7 @@ check_workspace()
     WSH_CACHE_DIR=${WSH_CACHE_DIR:-"${WSH_WORKSPACE_ROOT}/.wshandler"}
     WSH_BACKUP_FILE="${WSH_CACHE_DIR}/repolist.back"
 
-    if [ -n "${WSH_PREFER_VERSION}" ]
+    if [ -n "${WSH_TARGET_VERSION}" ]
     then
         rm -f "${WSH_CACHE_DIR}/prefer_version_matched"
         mkdir -p "${WSH_CACHE_DIR}"
@@ -841,9 +844,9 @@ check_workspace()
     then
         WSHANDLER+=("${WSH_KEEP_GOING}")
     fi
-    if [ -n "${WSH_PREFER_VERSION}" ]
+    if [ -n "${WSH_TARGET_VERSION}" ]
     then
-        WSHANDLER+=("-P" "${WSH_PREFER_VERSION}")
+        WSHANDLER+=("-P" "${WSH_TARGET_VERSION}")
     fi
     if [ ${#WSH_SED[@]} -gt 0 ]
     then
@@ -1194,17 +1197,18 @@ execute_branch()
 
 execute_commit()
 {
-    execute_foreach git "((git status --porcelain | grep . > /dev/null) && git commit -a -m '${1}') || true"
+    local MSG="${1//\'/\'\\\'\'}"
+    execute_foreach git "((git status --porcelain | grep . > /dev/null) && git commit -a -m '${MSG}') || true"
 }
 
 execute_clone()
 {
     CLONE_VERSION="$3"
 
-    if [ -n "${WSH_PREFER_VERSION}" ] && git ls-remote --exit-code "$2" "${WSH_PREFER_VERSION}" > /dev/null 2>&1
+    if [ -n "${WSH_TARGET_VERSION}" ] && git ls-remote --exit-code "$2" "${WSH_TARGET_VERSION}" > /dev/null 2>&1
     then
-        wsh_echo "Preferencing version '${WSH_PREFER_VERSION}' over '${CLONE_VERSION}' for workspace root"
-        CLONE_VERSION="${WSH_PREFER_VERSION}"
+        wsh_echo "Preferencing version '${WSH_TARGET_VERSION}' over '${CLONE_VERSION}' for workspace root"
+        CLONE_VERSION="${WSH_TARGET_VERSION}"
     fi
 
     "$1_clone" "NO" "$2" "${CLONE_VERSION}" "${WSH_WORKSPACE_ROOT}"
@@ -1260,9 +1264,61 @@ execute_selective_command()
         esac
     done
 
-    if [ "${COMMAND_NAME}" == "update" ] && [ -n "${WSH_PREFER_VERSION}" ] && [ ! -f "${WSH_CACHE_DIR}/prefer_version_matched" ]
+    if [ "${COMMAND_NAME}" == "update" ] && [ -n "${WSH_TARGET_VERSION}" ] && [ ! -f "${WSH_CACHE_DIR}/prefer_version_matched" ]
     then
-        wsh_exit 62 "No repository matched prefer-version '${WSH_PREFER_VERSION}'"
+        wsh_exit 62 "No repository matched prefer-version '${WSH_TARGET_VERSION}'"
+    fi
+}
+
+execute_per_repo_command()
+{
+    local COMMAND_NAME="$1"
+    shift
+
+    WSH_NAME_PATTERNS=("${WSH_NAME_PATTERNS[@]%/}")
+
+    if [ "${WSH_UNMANAGED}" = "YES" ]
+    then
+        if [ ${#WSH_NAME_PATTERNS[@]} -eq 0 ]
+        then
+            wsh_exit 90 "At least one directory is required with --unmanaged"
+        fi
+        local DIR
+        for DIR in "${WSH_NAME_PATTERNS[@]}"
+        do
+            if [ ! -d "${DIR}" ]
+            then
+                wsh_exit 90 "Directory '${DIR}' does not exist"
+            fi
+            wsh_echo "Processing '${DIR}'"
+            dir_"${COMMAND_NAME}"_per_repo "${DIR}" "$@"
+        done
+        return
+    fi
+
+    check_workspace "${COMMAND_NAME}"
+
+    local MATCHED=NO
+    local SOURCE_TYPE
+    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
+    do
+        local REPO_NAME REPO_URL REPO_VERSION
+        while read -r REPO_NAME REPO_URL REPO_VERSION
+        do
+            local REPO_DIR="${WSH_WORKSPACE_ROOT%/}/${REPO_NAME}"
+            if [ ! -d "${REPO_DIR}" ]
+            then
+                wsh_exit 90 "Repository directory '${REPO_DIR}' does not exist"
+            fi
+            wsh_echo "Processing '${REPO_NAME}'"
+            dir_"${COMMAND_NAME}"_per_repo "${REPO_DIR}" "$@"
+            MATCHED=YES
+        done < <(wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}"))
+    done
+
+    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ] && [ "${MATCHED}" = "NO" ]
+    then
+        wsh_exit 90 "No repository matched pattern(s): ${WSH_NAME_PATTERNS[*]}"
     fi
 }
 
@@ -1369,9 +1425,9 @@ version_number_read()
     esac
 }
 
-version_number_process_dir()
+dir_version_number_per_repo()
 {
-    pushd "$1" > /dev/null
+    pushd "$(realpath "$1")" > /dev/null
 
     local BUMP_POLICY="$2"
     local DO_TAG="$3"
@@ -1515,50 +1571,151 @@ execute_version_number()
         WSH_NAME_PATTERNS=("${@:1}")
     fi
 
-    # strip trailing slashes
-    WSH_NAME_PATTERNS=("${WSH_NAME_PATTERNS[@]%/}")
+    execute_per_repo_command "version_number" "${BUMP_POLICY}" "${DO_TAG}" "${TARGET_VERSION}"
+}
 
-    if [ "${WSH_UNMANAGED}" = "YES" ]
+dir_git_changelog_log()
+{
+    # Outputs newline-terminated fields per commit:
+    #   <short-hash>\n<author>\n<first line of commit message>\n
+    # $1 = lower bound (exclusive) or empty (unbounded)
+    # $2 = upper bound (inclusive) or empty (unbounded)
+    local RANGE_ARGS=()
+    if [ -n "$1" ] && [ -n "$2" ]
     then
-        if [ ${#WSH_NAME_PATTERNS[@]} -eq 0 ]
-        then
-            wsh_exit 90 "At least one directory is required with --unmanaged"
-        fi
-        for DIR in "${WSH_NAME_PATTERNS[@]}"
-        do
-            if [ ! -d "${DIR}" ]
-            then
-                wsh_exit 90 "Directory '${DIR}' does not exist"
-            fi
-            wsh_echo "Processing '${DIR}'"
-            version_number_process_dir "$(realpath "${DIR}")/" "${BUMP_POLICY}" "${DO_TAG}" "${TARGET_VERSION}"
-        done
-        return
+        RANGE_ARGS=("$1..$2")
+    elif [ -n "$1" ]
+    then
+        RANGE_ARGS=("$1..")
+    elif [ -n "$2" ]
+    then
+        RANGE_ARGS=("$2")
     fi
 
-    check_workspace "version_number"
+    git log --no-merges --format=$'%h\n%aN\n%s\n' "${RANGE_ARGS[@]}"
+}
 
-    local MATCHED=NO
-    for SOURCE_TYPE in ${WSH_SOURCE_TYPES}
-    do
-        while read -r REPO_NAME REPO_URL REPO_VERSION
+changelog_rule()
+{
+    # $1 = char, $2 = string; echoes a string of $2 chars.
+    # shellcheck disable=SC2001
+    echo "$2" | sed "s/./$1/g"
+}
+
+changelog_format_log_block()
+{
+    # Writes one version block to $1.
+    #   $1 = output file
+    #   $2 = section label (e.g. "1.0.0 (2021-01-01)" or "Forthcoming")
+    #   $3 = log data produced by dir_git_changelog_log
+    local OUTPUT="$1"
+    local LABEL="$2"
+    local LOG="$3"
+
+    {
+        echo "${LABEL}"
+        changelog_rule "-" "${LABEL}"
+        echo ""
+
+        local AUTHORS=()
+        local HASH="" AUTHOR="" SUBJECT=""
+
+        while IFS= read -r HASH
         do
-            local REPO_DIR="${WSH_WORKSPACE_ROOT%/}/${REPO_NAME}"
-            if [ ! -d "${REPO_DIR}" ]
-            then
-                wsh_exit 90 "Repository directory '${REPO_DIR}' does not exist"
-            fi
-            REPO_DIR="$(realpath "${REPO_DIR}")/"
-            wsh_echo "Processing '${REPO_NAME}'"
-            version_number_process_dir "${REPO_DIR}" "${BUMP_POLICY}" "${DO_TAG}" "${TARGET_VERSION}"
-            MATCHED=YES
-        done < <(wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}"))
+            # Skip blank separator lines between records.
+            [ -z "${HASH}" ] && continue
+            IFS= read -r AUTHOR || break
+            IFS= read -r SUBJECT || break
+
+            echo "* ${HASH} ${SUBJECT}"
+            AUTHORS+=("${AUTHOR}")
+        done <<< "${LOG}"
+
+        if [ ${#AUTHORS[@]} -gt 0 ]
+        then
+            local AUTHORS_STR
+            AUTHORS_STR=$(printf "%s\n" "${AUTHORS[@]}" | sort -u | paste -sd ', ')
+            echo ""
+            echo "Contributors: ${AUTHORS_STR}"
+        fi
+        echo ""
+    } >> "${OUTPUT}"
+}
+
+dir_changelog_per_repo()
+{
+    local REPO_DIR
+    REPO_DIR="$(realpath "$1")"
+    local FILENAME="$2"
+    if [ "${WSH_UNMANAGED}" = "YES" ] \
+        && ! (cd "${REPO_DIR}" && git rev-parse --git-dir >/dev/null 2>&1)
+    then
+        wsh_exit 8 "Directory '${REPO_DIR}' is not a git repository (required with --unmanaged)."
+    fi
+
+    pushd "${REPO_DIR}" > /dev/null
+
+    # Abort if the repository has no commits (e.g., freshly initialized).
+    if ! git rev-parse --verify HEAD > /dev/null 2>&1
+    then
+        popd > /dev/null
+        wsh_echo "Skipping '${REPO_DIR}': no commits"
+        return 0
+    fi
+
+    local TAGS
+    TAGS=$(git tag --sort=creatordate 2>/dev/null)
+
+    # Materialize the tag list and pad it with empty sentinels at both ends.
+    local -a TAG_ARR=("")
+    local TAG
+    while IFS= read -r TAG
+    do
+        [ -z "${TAG}" ] && continue
+        TAG_ARR+=("${TAG}")
+    done <<< "${TAGS}"
+    TAG_ARR+=("")
+
+    local HEADLINE="Changelog"
+    {
+        changelog_rule "^" "${HEADLINE}"
+        echo "${HEADLINE}"
+        changelog_rule "^" "${HEADLINE}"
+        echo ""
+    } > "${FILENAME}"
+
+    local N="${#TAG_ARR[@]}"
+    local i
+    for ((i = N - 1; i >= 1; i--))
+    do
+        local OLDER="${TAG_ARR[$((i - 1))]}"
+        local CUR="${TAG_ARR[$i]}"
+        local LABEL LOG
+        LOG=$(dir_git_changelog_log "${OLDER}" "${CUR}")
+        if [ -z "${CUR}" ]
+        then
+            # Back sentinel: commits after the newest tag, up to HEAD.
+            LABEL="${WSH_TARGET_VERSION:-Forthcoming} ($(date -u '+%Y-%m-%d %H:%M UTC'))"
+        else
+            LABEL="${CUR} ($(date -u -d "@$(git log -n 1 --format=%at "${CUR}")" '+%Y-%m-%d %H:%M UTC'))"
+        fi
+        # Tag blocks are always emitted (even when empty) so the resulting
+        # changelog mirrors the tag set; Forthcoming is suppressed when
+        # there are no post-tag commits.
+        if [ -n "${CUR}" ] || [ -n "${LOG}" ]
+        then
+            changelog_format_log_block "${FILENAME}" "${LABEL}" "${LOG}"
+        fi
     done
 
-    if [ ${#WSH_NAME_PATTERNS[@]} -gt 0 ] && [ "${MATCHED}" = "NO" ]
-    then
-        wsh_exit 90 "No repository matched pattern(s): ${WSH_NAME_PATTERNS[*]}"
-    fi
+    popd > /dev/null
+    wsh_echo "Generated changelog at ${FILENAME}"
+}
+
+execute_changelog()
+{
+    WSH_NAME_PATTERNS=("$@")
+    execute_per_repo_command "changelog" "${WSH_OUTPUT:-CHANGELOG.rst}"
 }
 
 discover_lists()
@@ -1603,9 +1760,10 @@ WSH_UNMANAGED=NO
 WSH_QUIET=NO
 WSH_WORKSPACE_TYPE=repos
 WSH_ENV_SUBST="cat"
-WSH_PREFER_VERSION=""
+WSH_TARGET_VERSION=""
 WSH_SED=()
 WSH_VERSION_FILES=("CMakeLists.txt" "package.xml" "pyproject.toml" "vcpkg.json")
+WSH_OUTPUT=""
 
 while [[ $# -gt 0 ]]
 do
@@ -1629,12 +1787,15 @@ do
 
         -k|--keep-going)     WSH_KEEP_GOING="-k";                        shift;;
         -T|--tag)            WSH_TAGS+=("$2");                           shift; shift;;
-        -P|--prefer-version) WSH_PREFER_VERSION="$2";                    shift; shift;;
+        # TODO backward compatibility
+        -P|--prefer-version) WSH_TARGET_VERSION="$2";                    shift; shift;;
         -u|--unsorted)       WSH_SORT_COMMAND="cat";                     shift;;
         -U|--unmanaged)      WSH_UNMANAGED="YES";                        shift;;
         -q|--quiet)          WSH_QUIET="YES";                            shift;;
         -e|--env-subst)      WSH_ENV_SUBST="envsubst";                   shift;;
-        -s|--sed)            WSH_SED+=("$2");                           shift; shift;;
+        -s|--sed)            WSH_SED+=("$2");                            shift; shift;;
+        -o|--output)         WSH_OUTPUT="$2";                            shift; shift;;
+        -V|--target-version) WSH_TARGET_VERSION="$2";                    shift; shift;;
 
         -l|--list)
             test "${WSH_REPOLIST_SOURCE}" != "-L" || wsh_exit 7 "Arguments -l and -L are incompatible.";
@@ -1703,8 +1864,8 @@ do
             done
             exit;;
 
-        version_number)
-            execute_version_number "${@:2}"
+        version_number|changelog)
+            "execute_$1" "${@:2}"
             exit;;
 
         set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch|pin)

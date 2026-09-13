@@ -16,8 +16,8 @@ test_clone_ws:
 
 test_clone_ws_prefer_version:
 	rm -rf tests/clone_prefer
-	# clone workspace root with --prefer-version overriding the branch
-	${WSHANDLER} -r tests/clone_prefer -P 0.2.4 clone git https://github.com/asherikov/sharf.git main
+	# clone workspace root with --target-version overriding the branch
+	${WSHANDLER} -r tests/clone_prefer -V 0.2.4 clone git https://github.com/asherikov/sharf.git main
 	# workspace root should be at tag 0.2.4, not branch main
 	test "$$(git -C tests/clone_prefer describe --tags --exact-match 2>/dev/null)" = "0.2.4"
 	rm -rf tests/clone_prefer
@@ -41,6 +41,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_sed
 	@${MAKE} wrap_test TEST=test_foreach
 	@${MAKE} wrap_test TEST=test_version_number
+	@${MAKE} wrap_test TEST=test_changelog
 
 wrap_test:
 	@echo ""
@@ -266,13 +267,13 @@ test_env_subst:
 test_prefer_version:
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
 	# prefer a nonexistent ref: at least one repo must match, should fail
-	! ${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P nonexistent_branch_that_does_not_exist update
+	! ${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -V nonexistent_branch_that_does_not_exist update
 	# prefer an existing tag (1.3.0 exists in qpmad, 1.2.0 exists in staticoma)
-	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P 1.3.0 update
+	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -V 1.3.0 update
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep 1.3.0
 	# prefer an existing branch (master exists in both repos)
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
-	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -P master update
+	${WSHANDLER} -t ${TYPE} -r tests/prefer_version/ -V master update
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ status | grep master
 	# clean up
 	${WSHANDLER} -t ${TYPE} --root tests/prefer_version/ clean
@@ -285,8 +286,8 @@ test_prefer_version_root: setup_git
 	cd tests/prefer_version_root && git init && git remote add origin https://github.com/asherikov/sharf.git
 	cd tests/prefer_version_root && git fetch && git checkout main
 	cd tests/prefer_version_root && echo "repositories:" > .${TYPE} && git add -f .${TYPE} && git commit -m "init"
-	# update with --prefer-version should checkout tag 0.2.4 for workspace root
-	${WSHANDLER} -t ${TYPE} --root tests/prefer_version_root/ -P 0.2.4 update
+	# update with --target-version should checkout tag 0.2.4 for workspace root
+	${WSHANDLER} -t ${TYPE} --root tests/prefer_version_root/ -V 0.2.4 update
 	test "$$(git -C tests/prefer_version_root describe --tags --exact-match 2>/dev/null)" = "0.2.4"
 	rm -Rf tests/prefer_version_root
 
@@ -527,6 +528,154 @@ test_version_number: setup_git
 
 	# --- cleanup ---
 	rm -rf tests/version_number
+
+test_changelog:
+	# Setup: create a test git repo with multiple commits, tags, and a merge commit.
+	rm -rf tests/changelog
+	mkdir -p tests/changelog/repo
+	cd tests/changelog/repo && git init -q
+	cd tests/changelog/repo && git config user.email "alice@example.com"
+	cd tests/changelog/repo && git config user.name "Alice"
+	cd tests/changelog/repo && git config commit.gpgsign false
+	cd tests/changelog/repo && echo "1" > a && git add a && git commit -q -m "First commit"
+	cd tests/changelog/repo && echo "2" > b && git add b && git commit -q -m "Second commit"
+	# Annotated tags with sleep between them so creatordate is distinct and
+	# `git tag --sort=creatordate` cannot fall back to alphabetical order.
+	cd tests/changelog/repo && git tag -a 1.0.0 -m "Release 1.0.0" 1.0.0 2>/dev/null || git tag -a 1.0.0 -m "Release 1.0.0"
+	sleep 2
+	cd tests/changelog/repo && git checkout -q -b feature
+	cd tests/changelog/repo && echo "feat" > feat && git add feat && git commit -q -m "Feature commit"
+	cd tests/changelog/repo && git checkout -q master
+	cd tests/changelog/repo && git merge --no-ff -q feature -m "Merge feature branch"
+	cd tests/changelog/repo && git tag -a 1.1.0 -m "Release 1.1.0"
+	cd tests/changelog/repo && git config user.email "bob@example.com"
+	cd tests/changelog/repo && git config user.name "Bob"
+	cd tests/changelog/repo && echo "3" > c && git add c && git commit -q -m "Third commit"
+	cd tests/changelog/repo && echo "4" > d && git add d && git commit -q -m "Fourth commit"
+
+	# Complete changelog: a section per git tag plus Forthcoming for commits since the last tag.
+	# Per-section placement is verified via sed ranges so that substrings landing in the
+	# wrong section (e.g. "First commit" appearing under 1.1.0 instead of 1.0.0) are caught.
+	${WSHANDLER} -U changelog tests/changelog/repo
+	test -f tests/changelog/repo/CHANGELOG.rst
+	grep -q '1\.0\.0 ' tests/changelog/repo/CHANGELOG.rst
+	grep -q '1\.1\.0 ' tests/changelog/repo/CHANGELOG.rst
+	grep -q 'Forthcoming' tests/changelog/repo/CHANGELOG.rst
+	# 1.0.0 section: First and Second commits only.
+	sed -n '/^1\.0\.0 /,$$p' tests/changelog/repo/CHANGELOG.rst | grep -q 'First commit'
+	sed -n '/^1\.0\.0 /,$$p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Second commit'
+	! sed -n '/^1\.0\.0 /,$$p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Third commit'
+	! sed -n '/^1\.0\.0 /,$$p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Fourth commit'
+	! sed -n '/^1\.0\.0 /,$$p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Feature commit'
+	# 1.1.0 section: Feature commit only (merge is excluded).
+	sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Feature commit'
+	! sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'First commit'
+	! sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Second commit'
+	! sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Third commit'
+	! sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Fourth commit'
+	! sed -n '/^1\.1\.0 /,/^1\.0\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Merge feature branch'
+	# Forthcoming section: Third and Fourth commits only.
+	sed -n '/^Forthcoming/,/^1\.1\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Third commit'
+	sed -n '/^Forthcoming/,/^1\.1\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Fourth commit'
+	! sed -n '/^Forthcoming/,/^1\.1\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'First commit'
+	! sed -n '/^Forthcoming/,/^1\.1\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Second commit'
+	! sed -n '/^Forthcoming/,/^1\.1\.0 /p' tests/changelog/repo/CHANGELOG.rst | grep -q 'Feature commit'
+	! grep -q 'Merge feature branch' tests/changelog/repo/CHANGELOG.rst
+
+	# Non-version tags (those that don't match vX.Y.Z) are also included.
+	rm -rf tests/changelog/non_ver
+	mkdir -p tests/changelog/non_ver
+	cd tests/changelog/non_ver && git init -q
+	cd tests/changelog/non_ver && git config user.email "alice@example.com"
+	cd tests/changelog/non_ver && git config user.name "Alice"
+	cd tests/changelog/non_ver && git config commit.gpgsign false
+	cd tests/changelog/non_ver && echo "1" > a && git add a && git commit -q -m "Alpha commit"
+	cd tests/changelog/non_ver && git tag alpha
+	cd tests/changelog/non_ver && echo "2" > b && git add b && git commit -q -m "Beta commit"
+	cd tests/changelog/non_ver && git tag 1.0.0
+	cd tests/changelog/non_ver && echo "3" > c && git add c && git commit -q -m "Gamma commit"
+	cd tests/changelog/non_ver && git tag release-candidate
+	cd tests/changelog/non_ver && echo "4" > d && git add d && git commit -q -m "Delta commit"
+	${WSHANDLER} -U changelog tests/changelog/non_ver
+	test -f tests/changelog/non_ver/CHANGELOG.rst
+	# Sections for every tag (including non-version ones) plus Forthcoming.
+	grep -q '^alpha ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q '^1\.0\.0 ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q '^release-candidate ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Forthcoming' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Alpha commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Beta commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Gamma commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Delta commit' tests/changelog/non_ver/CHANGELOG.rst
+
+	# -o/--output flag changes the output filename.
+	rm -f tests/changelog/repo/CHANGELOG.rst
+	${WSHANDLER} -U -o HISTORY.rst changelog tests/changelog/repo
+	test -f tests/changelog/repo/HISTORY.rst
+	test ! -f tests/changelog/repo/CHANGELOG.rst
+	grep -q '1\.0\.0 ' tests/changelog/repo/HISTORY.rst
+	grep -q '1\.1\.0 ' tests/changelog/repo/HISTORY.rst
+	grep -q 'Forthcoming' tests/changelog/repo/HISTORY.rst
+	grep -q 'First commit' tests/changelog/repo/HISTORY.rst
+	grep -q 'Second commit' tests/changelog/repo/HISTORY.rst
+	grep -q 'Third commit' tests/changelog/repo/HISTORY.rst
+	grep -q 'Fourth commit' tests/changelog/repo/HISTORY.rst
+
+	# Repo with no tags: all non-merge commits go into Forthcoming.
+	rm -rf tests/changelog/no_tags
+	mkdir -p tests/changelog/no_tags
+	cd tests/changelog/no_tags && git init -q
+	cd tests/changelog/no_tags && git config user.email "a@a" && git config user.name "Author"
+	cd tests/changelog/no_tags && git config commit.gpgsign false
+	cd tests/changelog/no_tags && echo "1" > a && git add a && git commit -q -m "Only commit"
+	${WSHANDLER} -U changelog tests/changelog/no_tags
+	test -f tests/changelog/no_tags/CHANGELOG.rst
+	grep -q 'Forthcoming' tests/changelog/no_tags/CHANGELOG.rst
+	grep -q 'Only commit' tests/changelog/no_tags/CHANGELOG.rst
+
+	# Empty repo: skipped, no output file produced.
+	rm -rf tests/changelog/empty
+	mkdir -p tests/changelog/empty
+	cd tests/changelog/empty && git init -q
+	${WSHANDLER} -U changelog tests/changelog/empty
+	test ! -f tests/changelog/empty/CHANGELOG.rst
+
+	# Workspace mode with package filtering: only matching repos get a changelog.
+	rm -rf tests/changelog/ws
+	mkdir -p tests/changelog/ws
+	cd tests/changelog/ws && git clone -q ../repo repo_a
+	cd tests/changelog/ws && git clone -q ../repo repo_b
+ifeq (${TYPE},rosinstall)
+	printf -- '- git:\n    local-name: repo_a\n    uri: dummy\n    version: master\n- git:\n    local-name: repo_b\n    uri: dummy\n    version: master\n' > tests/changelog/ws/.${TYPE}
+else
+	printf 'repositories:\n    repo_a:\n        type: git\n        url: dummy\n        version: master\n    repo_b:\n        type: git\n        url: dummy\n        version: master\n' > tests/changelog/ws/.${TYPE}
+endif
+	${WSHANDLER} -t ${TYPE} -r tests/changelog/ws changelog repo_a
+	test -f tests/changelog/ws/repo_a/CHANGELOG.rst
+	test ! -f tests/changelog/ws/repo_b/CHANGELOG.rst
+	grep -q '1\.0\.0 ' tests/changelog/ws/repo_a/CHANGELOG.rst
+	grep -q '1\.1\.0 ' tests/changelog/ws/repo_a/CHANGELOG.rst
+	grep -q 'Forthcoming' tests/changelog/ws/repo_a/CHANGELOG.rst
+
+	# Non-matching pattern: command exits with an error.
+	! ${WSHANDLER} -t ${TYPE} -r tests/changelog/ws changelog nonexistent_pattern
+
+	# --target-version overrides the "Forthcoming" section title.
+	rm -f tests/changelog/repo/CHANGELOG.rst
+	${WSHANDLER} -t ${TYPE} -U --target-version 1.2.0-pre changelog tests/changelog/repo
+	grep -q '^1\.2\.0-pre ' tests/changelog/repo/CHANGELOG.rst
+	! grep -q '^Forthcoming' tests/changelog/repo/CHANGELOG.rst
+	# Tag sections and commits are unaffected by --target-version.
+	grep -q '^1\.0\.0 ' tests/changelog/repo/CHANGELOG.rst
+	grep -q '^1\.1\.0 ' tests/changelog/repo/CHANGELOG.rst
+	grep -q 'Third commit' tests/changelog/repo/CHANGELOG.rst
+	grep -q 'Fourth commit' tests/changelog/repo/CHANGELOG.rst
+
+	# Cleanup.
+	rm -rf tests/changelog
+
+changelog:
+	${WSHANDLER} -U changelog .
 
 shellcheck:
 	shellcheck wshandler

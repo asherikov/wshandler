@@ -14,6 +14,10 @@ repositories), see
 <https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html>
 or <http://wiki.ros.org/catkin/workspaces> for more information.
 
+In addition to workspace management `wshandler` provides functionality similar
+to `catkin_prepare_release` and `catkin_generate_changelog` tools from
+`python3-catkin-pkg` package.
+
 
 Features
 --------
@@ -64,7 +68,7 @@ fixed stable repository versions that is updated when necessary.
 
 Sometimes multiple repositories are modified during development of a particular
 feature and need to be tested together. Provided that the feature branches are
-named consistently you can achieve this with `--prefer-version` flag -- when
+named consistently you can achieve this with `--target-version` flag -- when
 specified it forces `wshandler` to use given version (tag/branch) instead of
 version specified in repository list. At least one repository must match the
 specified ref, otherwise the command fails.
@@ -97,6 +101,19 @@ basic consistency checks and optionally commits and tags applied modifications.
 
 - Repository types:
     - `git`.
+
+
+### Changelog generation
+
+`wshandler changelog` generates a changelog file loosely following
+<https://www.ros.org/reps/rep-0132.html>. Merge commits are always skipped, and
+contributors (commit author names only) are appended to each release section. A
+section is emitted for every git tag (not just version-like tags), ordered by
+tag creation date, newest first. Recent commits that cannot be attributed to a
+tag land in the `Forthcoming` section. The title of that section can be
+overridden with `--target-version <VERSION>`.
+
+See `wshandler` [CHANGELOG.rst](CHANGELOG.rst) for example.
 
 
 Installation
@@ -162,7 +179,7 @@ Repository list commands:
         default   # plain clone
         shallow   # shallow clone
         nolfs     # disable git LFS
-    [-P|--prefer-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
+    [-V|--target-version <REF>] clone git <LIST_REPOSITORY> [<BRANCH>]    # clone workspace from a given repository
     init [git <PACKAGE_REPOSITORY> ...]       # initialize new workspace
 
   Modification:
@@ -200,7 +217,7 @@ Repository commands:
         version    # skip repositories whose current version matches the repository list
     unshallow [<PACKAGE_NAME> ...]        # git unshallow
     feature_branches [<PACKAGE_NAME> ...] # list git feature branches
-    [-p|--policy <POLICY1[,POLICY2]>] [-P|--prefer-version <REF>] update [<PACKAGE_NAME> ...] # git pull
+    [-p|--policy <POLICY1[,POLICY2]>] [-V|--target-version <REF>] update [<PACKAGE_NAME> ...] # git pull
       # policies:
         default      # plain clone
         shallow      # shallow clone
@@ -220,7 +237,10 @@ Repository commands:
         set         # set version directly, requires <VERSION> argument
       # optional:
         tag         # commit changes and create a git tag after updating files
-    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'  # execute command in each repository
+    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'
+      # execute command in each repository
+    [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]
+      # generate changelog file
 
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches
