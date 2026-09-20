@@ -1,0 +1,8 @@
+- git:
+    local-name: repo_a
+    uri: dummy
+    version: master
+- git:
+    local-name: repo_b
+    uri: dummy
+    version: master

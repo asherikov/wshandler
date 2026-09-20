@@ -116,6 +116,17 @@ overridden with `--target-version <VERSION>`.
 See `wshandler` [CHANGELOG.rst](CHANGELOG.rst) for example.
 
 
+### Package releases
+
+`wshandler release <VERSION> [<REPO> ...]` is a thin wrapper that combines
+`changelog` and `version_number` policy into a single release step that does
+the following:
+
+1. Generates (or regenerates) the changelog.
+2. Updates version-bearing files to `<VERSION>`.
+3. Commits the changes and creates a git tag named `<VERSION>`.
+
+
 Installation
 ============
 
@@ -241,6 +252,7 @@ Repository commands:
       # execute command in each repository
     [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]
       # generate changelog file
+    release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag
 
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches

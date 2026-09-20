@@ -1,0 +1,9 @@
+repositories:
+    repo_a:
+        type: git
+        url: dummy
+        version: master
+    repo_b:
+        type: git
+        url: dummy
+        version: master

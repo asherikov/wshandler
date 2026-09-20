@@ -144,6 +144,7 @@ help()
     wsh_echo "      # execute command in each repository"
     wsh_echo "    [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]"
     wsh_echo "      # generate changelog file"
+    wsh_echo "    release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag"
     wsh_echo ""
     wsh_echo "  Branching commands:"
     wsh_echo "    branch show ['<GREP_PATTERN>']                    # show matching branches"
@@ -1528,6 +1529,23 @@ dir_version_number_per_repo()
     popd > /dev/null
 }
 
+wsh_normalize_version()
+{
+    local INPUT="$1"
+    if ! [[ "${INPUT}" =~ ^([^0-9]*)([0-9]+(\.[0-9]+){0,2})([-_+].*)?$ ]]
+    then
+        wsh_exit 92 "Invalid version format '${INPUT}' (expected [<PREFIX>]X[.Y[.Z]][-<SUFFIX>])" >&2
+    fi
+    local REST="${BASH_REMATCH[2]}"
+    local PARTS
+    IFS='.' read -ra PARTS <<< "${REST}"
+    while [ "${#PARTS[@]}" -lt 3 ]
+    do
+        PARTS+=(0)
+    done
+    echo "${PARTS[0]}.${PARTS[1]}.${PARTS[2]}"
+}
+
 execute_version_number()
 {
     # Parse policies from WSH_COMMAND_POLICY (comma-separated)
@@ -1557,15 +1575,7 @@ execute_version_number()
     WSH_NAME_PATTERNS=()
     if [ "${BUMP_POLICY}" = "set" ]
     then
-        TARGET_VERSION="$1"
-        if [ -z "${TARGET_VERSION}" ]
-        then
-            wsh_exit 85 "The 'set' policy requires a version argument: version_number <VERSION>"
-        fi
-        if ! [[ "${TARGET_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-        then
-            wsh_exit 80 "Invalid version format '${TARGET_VERSION}' (expected x.y.z where x, y, z are non-negative integers)"
-        fi
+        TARGET_VERSION=$(wsh_normalize_version "$1")
         WSH_NAME_PATTERNS=("${@:2}")
     else
         WSH_NAME_PATTERNS=("${@:1}")
@@ -1718,6 +1728,17 @@ execute_changelog()
     execute_per_repo_command "changelog" "${WSH_OUTPUT:-CHANGELOG.rst}"
 }
 
+execute_release()
+{
+    WSH_TARGET_VERSION="$(wsh_normalize_version "$1")"
+    WSH_NAME_PATTERNS=("${@:2}")
+
+    execute_changelog "${WSH_NAME_PATTERNS[@]}"
+
+    WSH_COMMAND_POLICY="set,tag"
+    execute_version_number "${WSH_TARGET_VERSION}" "${WSH_NAME_PATTERNS[@]}"
+}
+
 discover_lists()
 {
     DISCOVER_PATH=$(realpath "$1");
@@ -1808,7 +1829,7 @@ do
             discover_lists "${WSH_WORKSPACE_ROOT:-"./"}";
             shift;;
 
-        clone|init)
+        clone|init|version_number|changelog|release)
             "execute_$1" "${@:2}"
             exit;;
 
@@ -1862,10 +1883,6 @@ do
                 backup
                 "${WSH_WORKSPACE_TYPE}_${WSH_YAML_TOOL}_$1" "${PKG_ID}" < "${WSH_BACKUP_FILE}" > "${WSH_REPOLIST}"
             done
-            exit;;
-
-        version_number|changelog)
-            "execute_$1" "${@:2}"
             exit;;
 
         set_version_by_url|set_version_by_name|set_version_to_hash|set_version_to_branch|pin)

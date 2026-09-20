@@ -42,6 +42,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_foreach
 	@${MAKE} wrap_test TEST=test_version_number
 	@${MAKE} wrap_test TEST=test_changelog
+	@${MAKE} wrap_test TEST=test_release
 
 wrap_test:
 	@echo ""
@@ -346,6 +347,17 @@ test_version_number_init:
 	rm -f tests/version_number/.${TYPE}
 	${WSHANDLER} -t ${TYPE} -r tests/version_number add git ${VN_DIR} dummy main
 
+# Workspace initialization for release tests: creates two version-bearing
+# repos with an initial commit and a feature commit each.
+test_release_init:
+	rm -rf tests/release
+	mkdir -p tests/release/repo_a tests/release/repo_b
+	cp tests/version_number_data/all/CMakeLists.txt tests/release/repo_a/
+	cp tests/version_number_data/all/CMakeLists.txt tests/release/repo_b/
+	cp tests/release_data/.${TYPE} tests/release/.${TYPE}
+	${WSHANDLER} -t ${TYPE} -r tests/release foreach git \
+		'git init -q && git add -A && git commit -q -m "init" && echo "1" > x && git add x && git commit -q -m "feat"'
+
 test_version_number: setup_git
 	# --- setup: copy pregenerated fixtures ---
 	rm -rf tests/version_number
@@ -440,7 +452,18 @@ test_version_number: setup_git
 	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number
 
 	# --- test: invalid version format should fail ---
-	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 1.2
+	! ${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 1.2.x
+
+	# --- test: relaxed version formats are accepted and normalized ---
+	${MAKE} test_version_number_init VN_DIR=missing
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number 1.2 missing
+	grep 'project(foo VERSION 1.2.0)' tests/version_number/missing/CMakeLists.txt > /dev/null
+	${MAKE} test_version_number_init VN_DIR=missing
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number v1 missing
+	grep 'project(foo VERSION 1.0.0)' tests/version_number/missing/CMakeLists.txt > /dev/null
+	${MAKE} test_version_number_init VN_DIR=missing
+	${WSHANDLER} -t ${TYPE} -r tests/version_number -p set version_number V2.3 missing
+	grep 'project(foo VERSION 2.3.0)' tests/version_number/missing/CMakeLists.txt > /dev/null
 
 	# --- test: tag policy (commit + git tag) ---
 	cd tests/version_number/tagging && git init -q && git add -A
@@ -673,6 +696,61 @@ endif
 
 	# Cleanup.
 	rm -rf tests/changelog
+
+test_release: setup_git
+	${MAKE} test_release_init
+
+	# --- test: missing version argument should fail ---
+	! ${WSHANDLER} -t ${TYPE} -r tests/release release
+
+	# --- test: invalid version format should fail ---
+	! ${WSHANDLER} -t ${TYPE} -r tests/release release 1.2.x
+
+	# --- test: full release updates version files, writes changelog, commits, tags ---
+	# The 'v' prefix exercises relaxed-version normalization as part of the
+	# end-to-end check; bare-format coverage lives in test_version_number.
+	${WSHANDLER} -t ${TYPE} -r tests/release release v1.2.3
+	grep 'project(foo VERSION 1.2.3)' tests/release/repo_a/CMakeLists.txt > /dev/null
+	grep 'project(foo VERSION 1.2.3)' tests/release/repo_b/CMakeLists.txt > /dev/null
+	test -f tests/release/repo_a/CHANGELOG.rst
+	test -f tests/release/repo_b/CHANGELOG.rst
+	# Forthcoming must be renamed to the release version.
+	grep -q '^1\.2\.3 ' tests/release/repo_a/CHANGELOG.rst
+	! grep -q '^Forthcoming' tests/release/repo_a/CHANGELOG.rst
+	grep -q '^1\.2\.3 ' tests/release/repo_b/CHANGELOG.rst
+	! grep -q '^Forthcoming' tests/release/repo_b/CHANGELOG.rst
+	# Both repos must have the release commit and the git tag.
+	git -C tests/release/repo_a tag --list | grep '1\.2\.3' > /dev/null
+	git -C tests/release/repo_a log --oneline | grep 'Bump version to 1.2.3' > /dev/null
+	git -C tests/release/repo_b tag --list | grep '1\.2\.3' > /dev/null
+	git -C tests/release/repo_b log --oneline | grep 'Bump version to 1.2.3' > /dev/null
+
+	# --- test: repo filtering (only repo_a is released) ---
+	${MAKE} test_release_init
+	${WSHANDLER} -t ${TYPE} -r tests/release release 2.0.0 repo_a
+	# repo_a was released.
+	grep 'project(foo VERSION 2.0.0)' tests/release/repo_a/CMakeLists.txt > /dev/null
+	git -C tests/release/repo_a tag --list | grep '2\.0\.0' > /dev/null
+	# repo_b was NOT released: still at 1.0.0, no 2.0.0 tag, no CHANGELOG.rst.
+	grep 'project(foo VERSION 1.0.0)' tests/release/repo_b/CMakeLists.txt > /dev/null
+	! git -C tests/release/repo_b tag --list | grep '2\.0\.0' > /dev/null
+	test -f tests/release/repo_a/CHANGELOG.rst
+	test ! -f tests/release/repo_b/CHANGELOG.rst
+
+	# --- test: --unmanaged mode (operates on a directory directly) ---
+	rm -rf tests/release/unmanaged
+	mkdir -p tests/release/unmanaged
+	cp tests/version_number_data/all/CMakeLists.txt tests/release/unmanaged/
+	cd tests/release/unmanaged && git init -q && \
+		git add -A && git commit -q -m "init"
+	${WSHANDLER} -U release 3.4.5 tests/release/unmanaged
+	grep 'project(foo VERSION 3.4.5)' tests/release/unmanaged/CMakeLists.txt > /dev/null
+	test -f tests/release/unmanaged/CHANGELOG.rst
+	grep -q '^3\.4\.5 ' tests/release/unmanaged/CHANGELOG.rst
+	git -C tests/release/unmanaged tag --list | grep '3\.4\.5' > /dev/null
+
+	# --- cleanup ---
+	rm -rf tests/release
 
 changelog:
 	${WSHANDLER} -U changelog .
