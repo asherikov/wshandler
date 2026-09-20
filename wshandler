@@ -142,9 +142,10 @@ help()
     wsh_echo "        tag         # commit changes and create a git tag after updating files"
     wsh_echo "    [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'"
     wsh_echo "      # execute command in each repository"
-    wsh_echo "    [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]"
-    wsh_echo "      # generate changelog file"
-    wsh_echo "    release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag"
+    wsh_echo "    [-f|--filter <GLOB_PATTERN>] [-V|--target-version <VERSION> {Forthcoming}]"
+    wsh_echo "      [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]"
+    wsh_echo "      # generate changelog file, --filter restricts which git tags get sections"
+    wsh_echo "    [-f|--filter <GLOB_PATTERN>] release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag"
     wsh_echo ""
     wsh_echo "  Branching commands:"
     wsh_echo "    branch show ['<GREP_PATTERN>']                    # show matching branches"
@@ -1674,7 +1675,7 @@ dir_changelog_per_repo()
     fi
 
     local TAGS
-    TAGS=$(git tag --sort=creatordate 2>/dev/null)
+    TAGS=$(git tag -l --sort=creatordate "${WSH_FILTER}" 2>/dev/null)
 
     # Materialize the tag list and pad it with empty sentinels at both ends.
     local -a TAG_ARR=("")
@@ -1785,6 +1786,7 @@ WSH_TARGET_VERSION=""
 WSH_SED=()
 WSH_VERSION_FILES=("CMakeLists.txt" "package.xml" "pyproject.toml" "vcpkg.json")
 WSH_OUTPUT=""
+WSH_FILTER="*"
 
 while [[ $# -gt 0 ]]
 do
@@ -1817,6 +1819,7 @@ do
         -s|--sed)            WSH_SED+=("$2");                            shift; shift;;
         -o|--output)         WSH_OUTPUT="$2";                            shift; shift;;
         -V|--target-version) WSH_TARGET_VERSION="$2";                    shift; shift;;
+        -f|--filter)         WSH_FILTER="$2";                            shift; shift;;
 
         -l|--list)
             test "${WSH_REPOLIST_SOURCE}" != "-L" || wsh_exit 7 "Arguments -l and -L are incompatible.";

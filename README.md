@@ -113,6 +113,10 @@ tag creation date, newest first. Recent commits that cannot be attributed to a
 tag land in the `Forthcoming` section. The title of that section can be
 overridden with `--target-version <VERSION>`.
 
+The set of tags that get their own section can be restricted with
+`--filter <GLOB_PATTERN>` (e.g., `--filter 'v*'` to keep only tags starting with
+`v`).
+
 See `wshandler` [CHANGELOG.rst](CHANGELOG.rst) for example.
 
 
@@ -250,9 +254,10 @@ Repository commands:
         tag         # commit changes and create a git tag after updating files
     [-j|--jobs <NUM_THREADS> {1}] foreach git [<PACKAGE_NAME> ...] '<COMMAND>'
       # execute command in each repository
-    [-V|--target-version <VERSION> {Forthcoming}] [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]
-      # generate changelog file
-    release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag
+    [-f|--filter <GLOB_PATTERN>] [-V|--target-version <VERSION> {Forthcoming}]
+      [-o|--output <FILENAME> {CHANGELOG.rst}] changelog [<PACKAGE_NAME> ...]
+      # generate changelog file, --filter restricts which git tags get sections
+    [-f|--filter <GLOB_PATTERN>] release <VERSION> [<REPO> ...]  # combined changelog + version_number set,tag
 
   Branching commands:
     branch show ['<GREP_PATTERN>']                    # show matching branches

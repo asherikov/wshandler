@@ -694,6 +694,38 @@ endif
 	grep -q 'Third commit' tests/changelog/repo/CHANGELOG.rst
 	grep -q 'Fourth commit' tests/changelog/repo/CHANGELOG.rst
 
+	# --filter restricts which git tags get their own section in the changelog.
+	# Reuse the non_ver repo which has alpha, 1.0.0, release-candidate tags.
+	rm -f tests/changelog/non_ver/CHANGELOG.rst
+	${WSHANDLER} -t ${TYPE} -U --filter '1.*' changelog tests/changelog/non_ver
+	test -f tests/changelog/non_ver/CHANGELOG.rst
+	# 1.0.0 is kept, alpha and release-candidate are filtered out.
+	grep -q '^1\.0\.0 ' tests/changelog/non_ver/CHANGELOG.rst
+	! grep -q '^alpha ' tests/changelog/non_ver/CHANGELOG.rst
+	! grep -q '^release-candidate ' tests/changelog/non_ver/CHANGELOG.rst
+	# Forthcoming section is still emitted for untagged commits.
+	grep -q 'Forthcoming' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Delta commit' tests/changelog/non_ver/CHANGELOG.rst
+	# Filter that matches nothing: only Forthcoming remains.
+	rm -f tests/changelog/non_ver/CHANGELOG.rst
+	${WSHANDLER} -t ${TYPE} -U --filter 'nonexistent*' changelog tests/changelog/non_ver
+	test -f tests/changelog/non_ver/CHANGELOG.rst
+	! grep -q '^1\.0\.0 ' tests/changelog/non_ver/CHANGELOG.rst
+	! grep -q '^alpha ' tests/changelog/non_ver/CHANGELOG.rst
+	! grep -q '^release-candidate ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Forthcoming' tests/changelog/non_ver/CHANGELOG.rst
+	# All tagged commits are still in the changelog (in Forthcoming).
+	grep -q 'Alpha commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Beta commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Gamma commit' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q 'Delta commit' tests/changelog/non_ver/CHANGELOG.rst
+	# No filter: all tags get sections (sanity check against accidental global change).
+	rm -f tests/changelog/non_ver/CHANGELOG.rst
+	${WSHANDLER} -t ${TYPE} -U changelog tests/changelog/non_ver
+	grep -q '^1\.0\.0 ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q '^alpha ' tests/changelog/non_ver/CHANGELOG.rst
+	grep -q '^release-candidate ' tests/changelog/non_ver/CHANGELOG.rst
+
 	# Cleanup.
 	rm -rf tests/changelog
 
