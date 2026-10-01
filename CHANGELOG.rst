@@ -2,12 +2,15 @@
 Changelog
 ^^^^^^^^^
 
-Forthcoming (2026-09-20 15:36 UTC)
+Forthcoming (2026-10-01 21:40 UTC)
 ----------------------------------
 
-* 38f1d46 Task#11: changelog command
+* 5e440c2 Task#15: optionally disable wrapping in status
+* 8c10379 Task#14: add filter parameter to changelog and release commands
+* 5866924 Task#13: add "release" command
+* cb8e37d Task#11: changelog command
 
-Contributors: shoggoth
+Contributors: Test,shoggoth
 
 1.7.1 (2026-08-25 17:01 UTC)
 ----------------------------

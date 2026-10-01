@@ -38,6 +38,7 @@ test_type:
 	@${MAKE} wrap_test TEST=test_prefer_version
 	@${MAKE} wrap_test TEST=test_prefer_version_root
 	@${MAKE} wrap_test TEST=test_push_policy
+	@${MAKE} wrap_test TEST=test_nowrap
 	@${MAKE} wrap_test TEST=test_sed
 	@${MAKE} wrap_test TEST=test_foreach
 	@${MAKE} wrap_test TEST=test_version_number
@@ -308,6 +309,24 @@ test_push_policy:
 	${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p version push 2>&1 | grep "Skipping"
 	# default policy: should attempt push to local bare repo (should succeed, no "Skipping")
 	! ${WSHANDLER} -t ${TYPE} --root tests/push_policy/ -p default push 2>&1 | grep "Skipping"
+
+test_nowrap:
+	# default status: must include the repository URL column in the output table
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/staticoma.git"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ status | grep "github.com/asherikov/qpmad.git"
+	# status policy is dropped: -p default and unknown policies no longer affect status
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -p default status | grep "github.com/asherikov/staticoma.git"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -p nonexistent_policy status | grep "github.com/asherikov/staticoma.git"
+	# header must still be present
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -w status | grep "name"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -w status | grep "actual version"
+	# -w/--nowrap preserves all fields (URL column is still present even when cropped)
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -w status | grep "github.com/asherikov/staticoma.git"
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -w status | grep "github.com/asherikov/qpmad.git"
+	# without -w/--nowrap: natural column widths are used and may exceed the terminal width
+	COLUMNS=40 ${WSHANDLER} -t ${TYPE} --root tests/update/ -q status | awk 'length > 40 { found=1 } END { exit !found }'
+	# -w/--nowrap combined with -q still includes URL when terminal is wide enough
+	${WSHANDLER} -t ${TYPE} --root tests/update/ -q -w status | grep "github.com/asherikov/staticoma.git"
 
 test_sed:
 	# sed replaces github.com with example.com in repo URLs

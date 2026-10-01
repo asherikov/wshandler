@@ -73,7 +73,8 @@ help()
     wsh_echo ""
     wsh_echo "Repository list commands:"
     wsh_echo "  Information:"
-    wsh_echo "    [-u|--unsorted] status    # show workspace status"
+    wsh_echo "    [-u|--unsorted] [-w|--nowrap] status    # show workspace status"
+    wsh_echo "      # nowrap: crop columns to the terminal width, all fields are still present"
     wsh_echo "    is_source_space           # check if a directory is a workspace"
     wsh_echo ""
     wsh_echo "  Initialization:"
@@ -400,7 +401,7 @@ dir_git_status()
         FLAGS+=" "
     fi
 
-    echo "${NAME}|${REPO_VERSION}|${GIT_ACTUAL_VERSION}|${FLAGS}|${REPO_URL}"
+    echo "${NAME}|${FLAGS}|${REPO_VERSION}|${GIT_ACTUAL_VERSION}|${REPO_URL}"
 }
 
 
@@ -653,8 +654,8 @@ status()
     DATA=$(
         if [ "${WSH_QUIET}" = "NO" ]
         then
-            echo "name|version|actual version|HM|repository";
-            echo "----|-------|--------------|--|----------";
+            echo "name|HM|version|actual version|repository";
+            echo "----|--|-------|--------------|----------";
         fi
         wsh_repo_tuples "${SOURCE_TYPE}" < <(${WSH_ENV_SUBST} < "${WSH_REPOLIST}") | while read -r -a tuple; do "dir_${SOURCE_TYPE}_status" "${tuple[@]}"; done | "${WSH_SORT_COMMAND}"
     )
@@ -679,13 +680,22 @@ status()
         echo "Total repositories: $((${#ROWS[@]} - 2))"
     fi
 
+    if [ "${WSH_WRAP}" = "NO" ] && [ -t 1 ]
+    then
+        printf '\033[?7l'
+    fi
+
     for ROW in "${ROWS[@]}"
     do
         IFS='|' read -ra COLS <<< "${ROW}"
-        # use ${COLUMNS} to crop?
         # shellcheck disable=SC2059
         printf "${FORMAT_STRING} %s\n" "${COLS[@]}"
     done
+
+    if [ "${WSH_WRAP}" = "NO" ] && [ -t 1 ]
+    then
+        printf '\033[?7h'
+    fi
 
     if [ "${WSH_QUIET}" = "NO" ]
     then
@@ -1780,6 +1790,7 @@ WSH_BACKUP_FILE=
 WSH_TAGS=()
 WSH_UNMANAGED=NO
 WSH_QUIET=NO
+WSH_WRAP=YES
 WSH_WORKSPACE_TYPE=repos
 WSH_ENV_SUBST="cat"
 WSH_TARGET_VERSION=""
@@ -1813,6 +1824,7 @@ do
         # TODO backward compatibility
         -P|--prefer-version) WSH_TARGET_VERSION="$2";                    shift; shift;;
         -u|--unsorted)       WSH_SORT_COMMAND="cat";                     shift;;
+        -w|--nowrap)         WSH_WRAP="NO";                              shift;;
         -U|--unmanaged)      WSH_UNMANAGED="YES";                        shift;;
         -q|--quiet)          WSH_QUIET="YES";                            shift;;
         -e|--env-subst)      WSH_ENV_SUBST="envsubst";                   shift;;
